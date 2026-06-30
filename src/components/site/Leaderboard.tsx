@@ -48,22 +48,22 @@ function TopSevenColumn({
   return (
     <Reveal className="min-w-0">
       <div className="glass-emerald min-w-0 rounded-2xl p-4 h-full sm:p-5 lg:p-6">
-        <div className="mb-5 flex min-w-0 flex-col gap-2 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between min-[380px]:gap-4">
-          <h3 className="font-display text-2xl text-gold-gradient">{title}</h3>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-(--gold-soft)/65 sm:tracking-[0.25em]">
+        <div className="mb-5 flex min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-4">
+          <h3 className="font-display text-xl text-gold-gradient sm:text-2xl">{title}</h3>
+          <span className="rounded-full border border-(--gold)/20 bg-(--emerald-deep)/35 px-3 py-1 text-[9px] uppercase tracking-[0.16em] text-(--gold-soft)/70 sm:text-[10px] sm:tracking-[0.25em]">
             {candidates.length} qualified
           </span>
         </div>
 
         {candidates.length > 0 ? (
-          <div className="grid min-w-0 gap-3">
+          <div className="grid min-w-0 gap-3 min-[520px]:grid-cols-2 md:grid-cols-1 xl:grid-cols-2">
             {candidates.map((candidate: any, index: number) => (
               <Reveal key={candidate.candidate_id} delay={index * 0.04} className="min-w-0">
-                <article className="flex min-w-0 items-center gap-3 rounded-xl border border-(--gold)/20 bg-(--emerald-deep)/45 p-3 transition-colors hover:border-(--gold)/45 sm:gap-4 sm:p-4">
+                <article className="flex min-w-0 items-center gap-3 rounded-xl border border-(--gold)/20 bg-(--emerald-deep)/45 p-3 transition-colors hover:border-(--gold)/45 sm:gap-4 sm:p-4 md:gap-3 xl:gap-4">
                   <Avatar candidate={candidate} image={top7ImageFor(candidate, photos)} />
                   <div className="min-w-0">
-                    <div className="font-display text-xl text-(--ivory) truncate">{candidate.name}</div>
-                    <div className="mt-1 text-[10px] uppercase tracking-[0.25em] text-(--ivory)/50 truncate">
+                    <div className="break-words font-display text-base leading-snug text-(--ivory) sm:text-lg xl:text-xl">{candidate.name}</div>
+                    <div className="mt-1 break-words text-[9px] uppercase tracking-[0.18em] text-(--ivory)/50 sm:text-[10px] sm:tracking-[0.25em]">
                       {candidate.sitio || "Barangay Lalo"}
                     </div>
                   </div>
@@ -105,7 +105,7 @@ export function Leaderboard() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-5 lg:gap-8 items-start">
         <TopSevenColumn title="Mr. Teen" candidates={mrTop} photos={candidatePhotos} />
         <TopSevenColumn title="Ms. Teen" candidates={msTop} photos={candidatePhotos} />
       </div>
