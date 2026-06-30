@@ -2,25 +2,24 @@ import { useEffect } from "react";
 import { createFileRoute, Outlet, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
-async function verifyAdminSession() {
+async function verifyAuthorizedSession() {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return false;
 
-  const { data: roles } = await supabase
+  const { data: roles } = await (supabase
     .from("user_roles")
     .select("role")
     .eq("user_id", data.user.id)
-    .eq("role", "admin")
-    .maybeSingle();
+    .in("role", ["admin", "chairman"]) as any);
 
-  return !!roles;
+  return !!roles?.length;
 }
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const isAdmin = await verifyAdminSession();
-    if (!isAdmin) {
+    const isAuthorized = await verifyAuthorizedSession();
+    if (!isAuthorized) {
       await supabase.auth.signOut();
       throw redirect({ to: "/auth", replace: true });
     }
@@ -36,8 +35,8 @@ function AuthenticatedLayout() {
     let cancelled = false;
 
     async function recheckSession() {
-      const isAdmin = await verifyAdminSession();
-      if (cancelled || isAdmin) return;
+      const isAuthorized = await verifyAuthorizedSession();
+      if (cancelled || isAuthorized) return;
       await supabase.auth.signOut();
       navigate({ to: "/auth", replace: true });
     }

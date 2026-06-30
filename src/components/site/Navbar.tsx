@@ -5,17 +5,18 @@ import skLogo from "@/assets/sk-logo.jpg";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { id: "about", label: "About" },
   { id: "announcements", label: "News" },
+  { id: "about", label: "About" },
   { id: "leaderboard", label: "Top 7" },
   { id: "candidates", label: "Candidates" },
   { id: "gallery", label: "Gallery" },
   { id: "videos", label: "Videos" },
   { id: "tickets", label: "Tickets" },
   { id: "sponsors", label: "Sponsors" },
+  { id: "officials", label: "Officials" },
 ];
 
-export function Navbar() {
+export function Navbar({ hiddenIds = [] }: { hiddenIds?: string[] }) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
@@ -42,7 +43,7 @@ export function Navbar() {
           </div>
         </a>
         <nav className="hidden lg:flex items-center gap-7">
-          {links.map((l) => (
+          {links.filter((l) => !hiddenIds.includes(l.id)).map((l) => (
             <a
               key={l.id}
               href={`#${l.id}`}

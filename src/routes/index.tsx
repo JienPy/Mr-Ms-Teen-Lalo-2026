@@ -10,8 +10,9 @@ import { Gallery } from "@/components/site/Gallery";
 import { Videos } from "@/components/site/Videos";
 import { Tickets } from "@/components/site/Tickets";
 import { Sponsors } from "@/components/site/Sponsors";
+import { Officials } from "@/components/site/Officials";
 import { Footer } from "@/components/site/Footer";
-import { settingsQuery } from "@/lib/queries";
+import { albumsQuery, announcementsQuery, settingsQuery, videosQuery } from "@/lib/queries";
 import { Reveal } from "@/components/luxury/Reveal";
 
 export const Route = createFileRoute("/")({
@@ -21,23 +22,34 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const { data: settings } = useSuspenseQuery(settingsQuery);
+  const { data: announcements = [] } = useSuspenseQuery(announcementsQuery);
+  const { data: albums = [] } = useSuspenseQuery(albumsQuery);
+  const { data: videos = [] } = useSuspenseQuery(videosQuery);
   const event = settings.event ?? { date: "2026-08-30", time: "6:00 PM onwards", venue: "Silungang Bayan" };
   const about = settings.about ?? { body: "" };
   const ticket = settings.ticket ?? { price: 50, terms: [] };
   const socials = settings.socials ?? {};
+  const developer = settings.developer ?? { label: "Website by", name: "Jien Claude Valancio", is_visible: true };
   const ticketImage = settings.ticketImage?.url;
 
   const targetIso = `${event.date}T18:00:00+08:00`;
+  const hiddenNavIds = [
+    announcements.length === 0 ? "announcements" : "",
+    albums.length === 0 ? "gallery" : "",
+    videos.length === 0 ? "videos" : "",
+  ].filter(Boolean);
 
   return (
     <div className="relative min-h-screen text-(--ivory)">
-      <Navbar />
+      <Navbar hiddenIds={hiddenNavIds} />
       <main>
         <Hero targetIso={targetIso} venue={event.venue} time={event.time} />
 
-        <Section id="announcements" eyebrow="Latest Updates" title="Announcements">
-          <Announcements />
-        </Section>
+        {announcements.length > 0 && (
+          <Section id="announcements" eyebrow="Latest Updates" title="Announcements">
+            <Announcements />
+          </Section>
+        )}
 
         <Section id="about" eyebrow="About the Pageant" title="A Celebration of Youth & Service">
           <Reveal>
@@ -47,7 +59,7 @@ function Home() {
           </Reveal>
         </Section>
 
-        <Section id="leaderboard" eyebrow="Weekly Standings" title="Top 7 of the Week" subtitle="Confidential ticket counts. Only percentages are public.">
+        <Section id="leaderboard" eyebrow="Weekly Standings" title="Top 7 of the Week" subtitle="Qualified candidates are shown in no particular order.">
           <Leaderboard />
         </Section>
 
@@ -55,21 +67,27 @@ function Home() {
           <Candidates />
         </Section>
 
-        <Section id="gallery" eyebrow="Event Moments" title="Gallery">
-          <Gallery />
-        </Section>
+        {albums.length > 0 && (
+          <Section id="gallery" eyebrow="Event Moments" title="Gallery">
+            <Gallery />
+          </Section>
+        )}
 
-        <Section id="videos" eyebrow="Teasers & Reels" title="Videos">
-          <Videos />
-        </Section>
+        {videos.length > 0 && (
+          <Section id="videos" eyebrow="Teasers & Reels" title="Videos">
+            <Videos />
+          </Section>
+        )}
 
         <Section id="tickets" eyebrow="Join the Gala" title="Get Your Ticket">
           <Tickets price={ticket.price} terms={ticket.terms} ticketImage={ticketImage} />
         </Section>
 
         <Sponsors />
+
+        <Officials />
       </main>
-      <Footer socials={socials} />
+      <Footer socials={socials} developer={developer} />
     </div>
   );
 }

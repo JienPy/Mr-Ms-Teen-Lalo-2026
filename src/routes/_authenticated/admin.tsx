@@ -7,7 +7,7 @@ import { GoldButton } from "@/components/luxury/GoldButton";
 import { GoldDivider } from "@/components/luxury/GoldDivider";
 import { toast } from "sonner";
 import {
-  candidatesQuery, announcementsQuery, albumsQuery, videosQuery, sponsorsQuery, settingsQuery,
+  candidatesQuery, announcementsQuery, albumsQuery, videosQuery, sponsorsQuery, settingsQuery, pageantPeopleQuery, DEFAULT_PAGEANT_PEOPLE, DEFAULT_SPONSORS, DEFAULT_CANDIDATE_CONTACTS, withDefaultPageantPeople, withDefaultSponsors,
 } from "@/lib/queries";
 import { LogOut, Plus, Trash2, Edit3, Image as ImageIcon, X, Pin, Upload } from "lucide-react";
 
@@ -16,12 +16,26 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-const TABS = ["Overview", "Candidates", "Tickets", "Announcements", "Gallery", "Videos", "Sponsors", "Settings"] as const;
+const TABS = ["Overview", "Candidates", "Tickets", "Announcements", "Gallery", "Videos", "Sponsors", "Officials", "Settings"] as const;
 type Tab = typeof TABS[number];
+type DashboardRole = "admin" | "chairman";
 
 function localDateInputValue(date = new Date()) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
+}
+
+function isSupabaseId(id?: string | null) {
+  return !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+function withAdminCandidateContacts(candidate: any) {
+  const defaults = DEFAULT_CANDIDATE_CONTACTS[String(candidate.name ?? "").toLowerCase()] ?? {};
+  return {
+    ...candidate,
+    facebook_url: candidate.facebook_url ?? defaults.facebook_url ?? null,
+    contact_number: candidate.contact_number ?? defaults.contact_number ?? null,
+  };
 }
 
 function localDateTimeInputValue(value?: string | null) {
@@ -56,6 +70,25 @@ function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("Overview");
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { data: dashboardRole = "chairman" } = useQuery({
+    queryKey: ["dashboard-role"],
+    queryFn: async (): Promise<DashboardRole> => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) return "chairman";
+      const { data } = await (supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id)
+        .in("role", ["admin", "chairman"]) as any);
+      return data?.some((row: any) => row.role === "admin") ? "admin" : "chairman";
+    },
+  });
+  const availableTabs = TABS.filter((t) => dashboardRole === "admin" || t !== "Tickets");
+
+  useEffect(() => {
+    if (dashboardRole !== "admin" && tab === "Tickets") setTab("Overview");
+  }, [dashboardRole, tab]);
+
   async function signOut() {
     await qc.cancelQueries();
     qc.clear();
@@ -78,7 +111,7 @@ function AdminDashboard() {
           </div>
         </div>
         <nav className="max-w-7xl mx-auto px-5 flex gap-2 overflow-x-auto pb-2 scrollbar-gold">
-          {TABS.map((t) => (
+          {availableTabs.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -91,13 +124,14 @@ function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-5 py-10">
-        {tab === "Overview" && <Overview />}
+        {tab === "Overview" && <Overview role={dashboardRole} />}
         {tab === "Candidates" && <CandidatesAdmin />}
-        {tab === "Tickets" && <TicketsAdmin />}
+        {dashboardRole === "admin" && tab === "Tickets" && <TicketsAdmin />}
         {tab === "Announcements" && <AnnouncementsAdmin />}
         {tab === "Gallery" && <GalleryAdmin />}
         {tab === "Videos" && <VideosAdmin />}
         {tab === "Sponsors" && <SponsorsAdmin />}
+        {tab === "Officials" && <OfficialsAdmin />}
         {tab === "Settings" && <SettingsAdmin />}
       </main>
     </div>
@@ -200,22 +234,24 @@ function ImageUpload({ value, onChange, folder, label = "Image" }: { value?: str
 
 /* ============== OVERVIEW ============== */
 
-function Overview() {
+function Overview({ role }: { role: DashboardRole }) {
   const candidates = useQuery(candidatesQuery);
   const announcements = useQuery(announcementsQuery);
   const albums = useQuery(albumsQuery);
   const videos = useQuery(videosQuery);
   const sponsors = useQuery(sponsorsQuery);
+  const people = useQuery(pageantPeopleQuery);
   const stats = [
     { label: "Candidates", value: candidates.data?.length ?? 0 },
     { label: "Announcements", value: announcements.data?.length ?? 0 },
     { label: "Albums", value: albums.data?.length ?? 0 },
     { label: "Videos", value: videos.data?.length ?? 0 },
     { label: "Sponsors", value: sponsors.data?.length ?? 0 },
+    { label: "Officials", value: people.data?.length ?? 0 },
   ];
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((s) => (
           <div key={s.label} className="glass-emerald rounded-2xl p-6 text-center">
             <div className="font-display text-4xl text-gold-gradient">{s.value}</div>
@@ -225,11 +261,15 @@ function Overview() {
       </div>
       <Panel title="Welcome">
         <p className="text-(--ivory)/80 font-serif text-lg">
-          Manage the entire site from here. Add candidates, encode ticket pickups, post announcements, upload photos & videos, and edit the public copy from <strong>Settings</strong>.
+          {role === "admin"
+            ? "Manage the entire site from here. Add candidates, encode ticket pickups, post announcements, upload photos & videos, and edit the public copy from Settings."
+            : "Manage public site content from here. Add candidates, post announcements, upload photos & videos, update sponsors and officials, and edit the public copy from Settings."}
         </p>
-        <p className="mt-3 text-(--ivory)/60 text-sm">
-          Public visitors only see <em>percentages</em> in the weekly Top 7. Raw ticket counts stay confidential to you.
-        </p>
+        {role === "admin" && (
+          <p className="mt-3 text-(--ivory)/60 text-sm">
+            Public visitors only see the weekly Top 7 names. Raw ticket counts stay confidential to you.
+          </p>
+        )}
       </Panel>
     </div>
   );
@@ -243,7 +283,7 @@ function CandidatesAdmin() {
     queryKey: ["admin-candidates"],
     queryFn: async () => {
       const { data, error } = await supabase.from("candidates").select("*").order("division").order("card_order", { nullsFirst: false }).order("candidate_number", { nullsFirst: false }).order("name");
-      if (error) throw error; return data;
+      if (error) throw error; return (data ?? []).map(withAdminCandidateContacts);
     },
   });
   const candidatePhotos = useQuery({
@@ -270,6 +310,8 @@ function CandidatesAdmin() {
         name: c.name, division: c.division, sitio: c.sitio,
         card_order: c.card_order ? Number(c.card_order) : null,
         candidate_number: c.candidate_number ? Number(c.candidate_number) : null,
+        facebook_url: c.facebook_url || null,
+        contact_number: c.contact_number || null,
         belief: c.belief, motto: c.motto || c.belief, photo_url: c.photo_url, is_active: c.is_active ?? true,
       };
       if (c.id) {
@@ -352,6 +394,8 @@ function CandidatesAdmin() {
             <TextField label="Sitio" value={editing.sitio ?? ""} onChange={(e) => setEditing({ ...editing, sitio: e.target.value })} />
             <TextField label="Display Order" type="number" value={editing.card_order ?? ""} onChange={(e) => setEditing({ ...editing, card_order: e.target.value })} />
             <TextField label="Candidate #" type="number" value={editing.candidate_number ?? ""} onChange={(e) => setEditing({ ...editing, candidate_number: e.target.value })} />
+            <TextField label="Facebook URL" value={editing.facebook_url ?? ""} onChange={(e) => setEditing({ ...editing, facebook_url: e.target.value })} />
+            <TextField label="Contact Number" value={editing.contact_number ?? ""} onChange={(e) => setEditing({ ...editing, contact_number: e.target.value })} />
           </div>
           <div className="mt-4"><TextArea label="Kasabihan / Paniniwala" value={editing.belief ?? editing.motto ?? ""} onChange={(e) => setEditing({ ...editing, belief: e.target.value, motto: e.target.value })} /></div>
           <div className="mt-4"><ImageUpload label="Fallback Portrait" folder="candidates" value={editing.photo_url} onChange={(url) => setEditing({ ...editing, photo_url: url })} /></div>
@@ -1161,8 +1205,11 @@ function SponsorsAdmin() {
         .order("tier", { ascending: true })
         .order("sort_order", { ascending: true })
         .order("name");
-      if (error) throw error;
-      return data ?? [];
+      if (error) {
+        if (error.code === "42P01" || error.code === "PGRST205" || error.message?.includes("sponsors")) return DEFAULT_SPONSORS;
+        throw error;
+      }
+      return withDefaultSponsors(data);
     },
   });
   const [editing, setEditing] = useState<any | null>(null);
@@ -1178,7 +1225,7 @@ function SponsorsAdmin() {
         sort_order: s.sort_order ? Number(s.sort_order) : 100,
         is_visible: s.is_visible ?? true,
       };
-      if (s.id) {
+      if (isSupabaseId(s.id)) {
         const { error } = await (supabase.from("sponsors") as any).update(payload).eq("id", s.id);
         if (error) throw error;
       } else {
@@ -1233,7 +1280,7 @@ function SponsorsAdmin() {
             </div>
             <div className="flex gap-1 shrink-0">
               <button onClick={() => setEditing(s)} className="text-(--gold-soft) p-2"><Edit3 className="w-4 h-4" /></button>
-              <button onClick={() => confirm(`Delete ${s.name}?`) && del.mutate(s.id)} className="text-(--destructive) p-2"><Trash2 className="w-4 h-4" /></button>
+              {isSupabaseId(s.id) && <button onClick={() => confirm(`Delete ${s.name}?`) && del.mutate(s.id)} className="text-(--destructive) p-2"><Trash2 className="w-4 h-4" /></button>}
             </div>
           </div>
         ))}
@@ -1242,7 +1289,7 @@ function SponsorsAdmin() {
 
       {editing && (
         <Modal onClose={() => setEditing(null)}>
-          <h3 className="font-display text-2xl text-gold-gradient mb-2">{editing.id ? "Edit" : "New"} Sponsor</h3>
+          <h3 className="font-display text-2xl text-gold-gradient mb-2">{isSupabaseId(editing.id) ? "Edit" : "New"} Sponsor</h3>
           <GoldDivider />
           <div className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
@@ -1265,6 +1312,154 @@ function SponsorsAdmin() {
           <div className="mt-6 flex justify-end gap-3">
             <button onClick={() => setEditing(null)} className="text-(--ivory)/70 text-xs uppercase tracking-[0.2em]">Cancel</button>
             <GoldButton onClick={() => save.mutate(editing)} disabled={save.isPending}>Save</GoldButton>
+          </div>
+        </Modal>
+      )}
+    </Panel>
+  );
+}
+
+/* ============== OFFICIALS & ORGANIZERS ============== */
+
+function OfficialsAdmin() {
+  const qc = useQueryClient();
+  const { data = [] } = useQuery({
+    queryKey: ["admin-pageant-people"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("pageant_people") as any)
+        .select("*")
+        .order("group_type", { ascending: true })
+        .order("sort_order", { ascending: true })
+        .order("name");
+      if (error) {
+        if (error.code === "42P01" || error.code === "PGRST205" || error.message?.includes("pageant_people")) return DEFAULT_PAGEANT_PEOPLE;
+        throw error;
+      }
+      return withDefaultPageantPeople(data);
+    },
+  });
+  const [editing, setEditing] = useState<any | null>(null);
+
+  const save = useMutation({
+    mutationFn: async (person: any) => {
+      const payload = {
+        group_type: person.group_type ?? "sk",
+        name: person.name,
+        role: person.role || null,
+        photo_url: person.photo_url || null,
+        facebook_url: person.facebook_url || null,
+        contact_number: person.contact_number || null,
+        sort_order: person.sort_order ? Number(person.sort_order) : 100,
+        is_visible: person.is_visible ?? true,
+      };
+      if (isSupabaseId(person.id)) {
+        const { error } = await (supabase.from("pageant_people") as any).update(payload).eq("id", person.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase.from("pageant_people") as any).insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Official saved.");
+      qc.invalidateQueries({ queryKey: ["admin-pageant-people"] });
+      qc.invalidateQueries({ queryKey: ["pageant-people"] });
+      setEditing(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.from("pageant_people") as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Official deleted.");
+      qc.invalidateQueries({ queryKey: ["admin-pageant-people"] });
+      qc.invalidateQueries({ queryKey: ["pageant-people"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const sk = data.filter((person: any) => person.group_type === "sk");
+  const organizers = data.filter((person: any) => person.group_type === "organizer");
+
+  function PeopleList({ title, people }: { title: string; people: any[] }) {
+    return (
+      <div>
+        <h3 className="text-[10px] uppercase tracking-[0.3em] text-(--gold-soft)/70 mb-3">{title}</h3>
+        <div className="space-y-3">
+          {people.map((person: any) => (
+            <div key={person.id} className="p-4 rounded-lg border border-(--gold)/15 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                {person.photo_url ? (
+                  <img src={person.photo_url} alt="" className="w-14 h-14 rounded-full object-cover ring-1 ring-(--gold)/25" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-(--secondary) ring-1 ring-(--gold)/25 grid place-items-center text-(--gold-soft) font-display">
+                    {person.name?.charAt(0)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-(--gold-soft)/70">
+                    <span>{person.role || "Member"}</span>
+                    {!person.is_visible && <span className="text-(--ivory)/45">Hidden</span>}
+                  </div>
+                  <div className="font-display text-lg text-(--ivory) truncate">{person.name}</div>
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => setEditing(person)} className="text-(--gold-soft) p-2"><Edit3 className="w-4 h-4" /></button>
+                {isSupabaseId(person.id) && <button onClick={() => confirm(`Delete ${person.name}?`) && del.mutate(person.id)} className="text-(--destructive) p-2"><Trash2 className="w-4 h-4" /></button>}
+              </div>
+            </div>
+          ))}
+          {people.length === 0 && <p className="text-(--ivory)/50 italic py-4">No entries yet.</p>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Panel
+      title="Officials & Organizers"
+      action={
+        <div className="flex flex-wrap gap-2">
+          <GoldButton onClick={() => setEditing({ group_type: "sk", name: "", role: "SK Kagawad", sort_order: (sk.length + 1), is_visible: true })}><Plus className="w-4 h-4" /> SK</GoldButton>
+          <GoldButton onClick={() => setEditing({ group_type: "organizer", name: "", role: "Organizer", sort_order: (organizers.length + 1), is_visible: true })}><Plus className="w-4 h-4" /> Organizer</GoldButton>
+        </div>
+      }
+    >
+      <div className="grid lg:grid-cols-2 gap-6">
+        <PeopleList title="SK Officials" people={sk} />
+        <PeopleList title="Organizers" people={organizers} />
+      </div>
+
+      {editing && (
+        <Modal onClose={() => setEditing(null)}>
+          <h3 className="font-display text-2xl text-gold-gradient mb-2">{isSupabaseId(editing.id) ? "Edit" : "New"} Entry</h3>
+          <GoldDivider />
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Select label="Section" value={editing.group_type ?? "sk"} onChange={(e) => setEditing({ ...editing, group_type: e.target.value })}>
+                <option value="sk">SK Officials</option>
+                <option value="organizer">Organizers</option>
+              </Select>
+              <TextField label="Sort Order" type="number" value={editing.sort_order ?? 100} onChange={(e) => setEditing({ ...editing, sort_order: e.target.value })} />
+              <TextField label="Name" value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              <TextField label="Role / Position" value={editing.role ?? ""} onChange={(e) => setEditing({ ...editing, role: e.target.value })} />
+              <TextField label="Facebook URL" value={editing.facebook_url ?? ""} onChange={(e) => setEditing({ ...editing, facebook_url: e.target.value })} />
+              <TextField label="Contact Number" value={editing.contact_number ?? ""} onChange={(e) => setEditing({ ...editing, contact_number: e.target.value })} />
+            </div>
+            <ImageUpload label="Round Photo" folder="officials" value={editing.photo_url} onChange={(url) => setEditing({ ...editing, photo_url: url })} />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={editing.is_visible ?? true} onChange={(e) => setEditing({ ...editing, is_visible: e.target.checked })} />
+              Show on public website
+            </label>
+          </div>
+          <div className="mt-6 flex justify-end gap-3">
+            <button onClick={() => setEditing(null)} className="text-(--ivory)/70 text-xs uppercase tracking-[0.2em]">Cancel</button>
+            <GoldButton onClick={() => save.mutate(editing)} disabled={save.isPending || !editing.name}>Save</GoldButton>
           </div>
         </Modal>
       )}
@@ -1297,6 +1492,7 @@ function SettingsAdmin() {
   const ticket = current.ticket ?? { terms: [] };
   const socials = current.socials ?? {};
   const ticketImage = current.ticketImage ?? {};
+  const developer = current.developer ?? { label: "Website by", name: "Jien Claude Valancio", is_visible: true };
 
   return (
     <div className="space-y-6">
@@ -1332,6 +1528,20 @@ function SettingsAdmin() {
           <TextField label="Instagram URL" value={socials.instagram ?? ""} onChange={(e) => setKey("socials", { ...socials, instagram: e.target.value })} />
           <TextField label="TikTok URL" value={socials.tiktok ?? ""} onChange={(e) => setKey("socials", { ...socials, tiktok: e.target.value })} />
         </div>
+      </Panel>
+
+      <Panel title="Developer Contact">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <TextField label="Label" value={developer.label ?? ""} onChange={(e) => setKey("developer", { ...developer, label: e.target.value })} />
+          <TextField label="Name" value={developer.name ?? ""} onChange={(e) => setKey("developer", { ...developer, name: e.target.value })} />
+          <TextField label="Email" value={developer.email ?? ""} onChange={(e) => setKey("developer", { ...developer, email: e.target.value })} />
+          <TextField label="Phone / Contact Number" value={developer.phone ?? ""} onChange={(e) => setKey("developer", { ...developer, phone: e.target.value })} />
+          <TextField label="Facebook URL" value={developer.facebook ?? ""} onChange={(e) => setKey("developer", { ...developer, facebook: e.target.value })} />
+        </div>
+        <label className="mt-4 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={developer.is_visible ?? true} onChange={(e) => setKey("developer", { ...developer, is_visible: e.target.checked })} />
+          Show developer contact in footer
+        </label>
       </Panel>
 
       <div className="flex justify-end">
