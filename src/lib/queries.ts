@@ -18,42 +18,6 @@ export const DEFAULT_PAGEANT_PEOPLE = [
   { id: "organizer-cedrick-abuel", group_type: "organizer", name: "Cedrick Abuel", role: "Organizer", photo_url: null, facebook_url: "https://www.facebook.com/ced.abuel94", contact_number: null, sort_order: 5, is_visible: true },
 ];
 
-export const DEFAULT_CANDIDATE_CONTACTS: Record<string, { facebook_url?: string; contact_number?: string | null }> = {
-  "adrian n. sta. ana": { facebook_url: "https://www.facebook.com/adrian.sta.ana.460022", contact_number: "09386724590" },
-  "britney armocilla": { facebook_url: "https://www.facebook.com/BritneyArmocilla", contact_number: "09663771668" },
-  "carlos jose z. labaquis": { facebook_url: "https://www.facebook.com/carlosjose.labaguis.3", contact_number: "09106384061" },
-  "criza jen c. capistrano": { facebook_url: "https://www.facebook.com/crishyy12", contact_number: "09706611140" },
-  "joyce anne rose b. cena": { facebook_url: "https://www.facebook.com/joyceannerose.cena.1", contact_number: "09483896610" },
-  "kave izzy d. oates": { facebook_url: "https://www.facebook.com/kaveizzy.oates", contact_number: "09481869497" },
-  "ken brian p. edrad": { facebook_url: "https://www.facebook.com/bryan.edrad.2024", contact_number: "09939928649" },
-  "chris daniel l. dadis": { facebook_url: "https://www.facebook.com/daniel.dadis.2025", contact_number: "09512357325" },
-  "rieven v. villa": { facebook_url: "https://www.facebook.com/profile.php?id=100084121066177", contact_number: "09386442223" },
-  "emerald a. delgado": { facebook_url: "https://www.facebook.com/emerald.delgado.509", contact_number: "09423381995" },
-  "kian ezekiel v. edrad": { facebook_url: "https://www.facebook.com/ezekiel.edrad", contact_number: "09703388110" },
-  "hannah grace d. lesma": { facebook_url: "https://www.facebook.com/hannah.grace.durante.lesma", contact_number: "09945821769" },
-  "janine crisibelle s. lopez": { facebook_url: "https://www.facebook.com/ichaaqx", contact_number: "09853155822" },
-  "jonas r. javin": { facebook_url: "https://www.facebook.com/jonas.javin", contact_number: null },
-  "kurt rafanan": { facebook_url: "https://www.facebook.com/txrkzzzzz", contact_number: "09483532352" },
-  "kyla mae ecal": { facebook_url: "https://www.facebook.com/kyla.mae.ecal.2025", contact_number: "09817340863" },
-  "princess loren l. ricamata": { facebook_url: "https://www.facebook.com/princesslorenricamata4", contact_number: "09855500466" },
-  "cielo mae s. caagbay": { facebook_url: "https://www.facebook.com/caagbaycielo", contact_number: "09564975048" },
-  "mirence felicity e. javin": { facebook_url: "https://www.facebook.com/mirencefelicity.javin", contact_number: "09308275923" },
-  "precious nicole guevarra": { facebook_url: "https://www.facebook.com/preciousnicole.guevarra.5", contact_number: "09854400950" },
-  "raven zian t. leones": { facebook_url: "https://www.facebook.com/raven.zian.leones", contact_number: "09183206200" },
-  "reese denielle nuqui": { facebook_url: "https://www.facebook.com/reese.nuqui.58", contact_number: "09637873136" },
-  "symon d. pabularcon": { facebook_url: "https://www.facebook.com/symon.pabularcon.71", contact_number: "09187728994" },
-  "tyron p. veloso": { facebook_url: "https://www.facebook.com/tyron.veloso.73", contact_number: "09469590669" },
-};
-
-function withDefaultCandidateContacts(candidate: any) {
-  const defaults = DEFAULT_CANDIDATE_CONTACTS[String(candidate.name ?? "").toLowerCase()] ?? {};
-  return {
-    ...candidate,
-    facebook_url: candidate.facebook_url ?? defaults.facebook_url ?? null,
-    contact_number: candidate.contact_number ?? defaults.contact_number ?? null,
-  };
-}
-
 export const DEFAULT_SPONSORS = [
   { id: "sponsor-jun-baretto-tabi", name: "Jun Baretto Tabi", tier: "community", logo_url: null, description: null, link_url: null, sort_order: 1, is_visible: true },
   { id: "sponsor-doris-obciana-maeda", name: "Doris Obciana Maeda", tier: "community", logo_url: null, description: null, link_url: null, sort_order: 2, is_visible: true },
@@ -93,7 +57,7 @@ export const candidatesQuery = queryOptions({
       .order("candidate_number", { ascending: true, nullsFirst: false })
       .order("name");
     if (error) throw error;
-    return (data ?? []).map(withDefaultCandidateContacts);
+    return data ?? [];
   },
 });
 

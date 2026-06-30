@@ -7,7 +7,7 @@ import { GoldButton } from "@/components/luxury/GoldButton";
 import { GoldDivider } from "@/components/luxury/GoldDivider";
 import { toast } from "sonner";
 import {
-  candidatesQuery, announcementsQuery, albumsQuery, videosQuery, sponsorsQuery, settingsQuery, pageantPeopleQuery, DEFAULT_PAGEANT_PEOPLE, DEFAULT_SPONSORS, DEFAULT_CANDIDATE_CONTACTS, withDefaultPageantPeople, withDefaultSponsors,
+  candidatesQuery, announcementsQuery, albumsQuery, videosQuery, sponsorsQuery, settingsQuery, pageantPeopleQuery, DEFAULT_PAGEANT_PEOPLE, DEFAULT_SPONSORS, withDefaultPageantPeople, withDefaultSponsors,
 } from "@/lib/queries";
 import { LogOut, Plus, Trash2, Edit3, Image as ImageIcon, X, Pin, Upload } from "lucide-react";
 
@@ -27,15 +27,6 @@ function localDateInputValue(date = new Date()) {
 
 function isSupabaseId(id?: string | null) {
   return !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-}
-
-function withAdminCandidateContacts(candidate: any) {
-  const defaults = DEFAULT_CANDIDATE_CONTACTS[String(candidate.name ?? "").toLowerCase()] ?? {};
-  return {
-    ...candidate,
-    facebook_url: candidate.facebook_url ?? defaults.facebook_url ?? null,
-    contact_number: candidate.contact_number ?? defaults.contact_number ?? null,
-  };
 }
 
 function localDateTimeInputValue(value?: string | null) {
@@ -283,7 +274,7 @@ function CandidatesAdmin() {
     queryKey: ["admin-candidates"],
     queryFn: async () => {
       const { data, error } = await supabase.from("candidates").select("*").order("division").order("card_order", { nullsFirst: false }).order("candidate_number", { nullsFirst: false }).order("name");
-      if (error) throw error; return (data ?? []).map(withAdminCandidateContacts);
+      if (error) throw error; return data ?? [];
     },
   });
   const candidatePhotos = useQuery({
