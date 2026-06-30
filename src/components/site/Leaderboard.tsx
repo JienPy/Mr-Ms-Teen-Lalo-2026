@@ -26,11 +26,11 @@ function displayTopSeven(data: any[], division: "mr" | "ms") {
 
 function Avatar({ candidate, image }: { candidate: any; image?: string | null }) {
   if (image) {
-    return <img src={image} alt={candidate.name} className="h-16 w-16 rounded-full object-cover ring-1 ring-(--gold)/40" />;
+    return <img src={image} alt={candidate.name} className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-(--gold)/40 sm:h-16 sm:w-16" />;
   }
 
   return (
-    <div className="h-16 w-16 rounded-full bg-(--secondary) grid place-items-center text-(--gold) font-display text-2xl">
+    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-(--secondary) font-display text-xl text-(--gold) sm:h-16 sm:w-16 sm:text-2xl">
       {candidate.name.charAt(0)}
     </div>
   );
@@ -46,20 +46,20 @@ function TopSevenColumn({
   photos: any[];
 }) {
   return (
-    <Reveal>
-      <div className="glass-emerald rounded-2xl p-5 lg:p-6 h-full">
-        <div className="flex items-center justify-between gap-4 mb-5">
+    <Reveal className="min-w-0">
+      <div className="glass-emerald min-w-0 rounded-2xl p-4 h-full sm:p-5 lg:p-6">
+        <div className="mb-5 flex min-w-0 flex-col gap-2 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between min-[380px]:gap-4">
           <h3 className="font-display text-2xl text-gold-gradient">{title}</h3>
-          <span className="text-[10px] uppercase tracking-[0.25em] text-(--gold-soft)/65">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-(--gold-soft)/65 sm:tracking-[0.25em]">
             {candidates.length} qualified
           </span>
         </div>
 
         {candidates.length > 0 ? (
-          <div className="grid gap-3">
+          <div className="grid min-w-0 gap-3">
             {candidates.map((candidate: any, index: number) => (
-              <Reveal key={candidate.candidate_id} delay={index * 0.04}>
-                <article className="rounded-xl border border-(--gold)/20 bg-(--emerald-deep)/45 p-4 flex items-center gap-4 hover:border-(--gold)/45 transition-colors">
+              <Reveal key={candidate.candidate_id} delay={index * 0.04} className="min-w-0">
+                <article className="flex min-w-0 items-center gap-3 rounded-xl border border-(--gold)/20 bg-(--emerald-deep)/45 p-3 transition-colors hover:border-(--gold)/45 sm:gap-4 sm:p-4">
                   <Avatar candidate={candidate} image={top7ImageFor(candidate, photos)} />
                   <div className="min-w-0">
                     <div className="font-display text-xl text-(--ivory) truncate">{candidate.name}</div>
