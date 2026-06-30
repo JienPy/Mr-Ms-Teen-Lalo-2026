@@ -207,6 +207,142 @@
 
 .animate-glow-pulse { animation: glow-pulse 4s ease-in-out infinite; }
 
+@keyframes candidate-spark-drift {
+  0%, 100% { opacity: 0.32; transform: translate3d(0, 0, 0) scale(1); }
+  50% { opacity: 0.85; transform: translate3d(10px, -14px, 0) scale(1.22); }
+}
+
+@keyframes candidate-border-breathe {
+  0%, 100% { opacity: 0.25; transform: scaleX(0.42); }
+  50% { opacity: 0.9; transform: scaleX(1); }
+}
+
+.candidate-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  box-shadow:
+    0 16px 46px -28px oklch(0 0 0 / 0.8),
+    inset 0 1px 0 oklch(0.84 0.11 85 / 0.16);
+  transition:
+    box-shadow 500ms ease,
+    border-color 500ms ease;
+}
+
+.candidate-card:hover {
+  border-color: oklch(0.84 0.11 85 / 0.72);
+  box-shadow:
+    0 28px 80px -32px oklch(0.74 0.13 85 / 0.62),
+    0 20px 80px -45px oklch(0.42 0.08 185 / 0.6),
+    inset 0 1px 0 oklch(0.84 0.11 85 / 0.24);
+}
+
+.candidate-card__halo {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 25% 15%, oklch(0.84 0.11 85 / 0.24), transparent 36%),
+    radial-gradient(circle at 75% 90%, oklch(0.42 0.08 185 / 0.18), transparent 38%);
+  transition: opacity 500ms ease;
+}
+
+.candidate-card:hover .candidate-card__halo {
+  opacity: 1;
+}
+
+.candidate-card__shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(110deg, transparent 28%, oklch(1 0 0 / 0.28) 48%, transparent 68%);
+  transform: translateX(-130%) skewX(-14deg);
+}
+
+.candidate-card:hover .candidate-card__shine {
+  opacity: 1;
+  animation: shimmer-sweep 1.1s ease both;
+}
+
+.candidate-card__corner {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 350ms ease, transform 450ms ease;
+}
+
+.candidate-card__corner--tl {
+  top: 10px;
+  right: 10px;
+  border-top: 1px solid oklch(0.84 0.11 85 / 0.62);
+  border-right: 1px solid oklch(0.84 0.11 85 / 0.62);
+}
+
+.candidate-card__corner--br {
+  left: 10px;
+  bottom: 10px;
+  border-left: 1px solid oklch(0.84 0.11 85 / 0.45);
+  border-bottom: 1px solid oklch(0.84 0.11 85 / 0.45);
+}
+
+.candidate-card:hover .candidate-card__corner {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+.candidate-card__spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: oklch(0.84 0.11 85 / 0.9);
+  box-shadow: 0 0 22px oklch(0.84 0.11 85 / 0.55);
+  animation: candidate-spark-drift 4.5s ease-in-out infinite;
+}
+
+.candidate-card__spark--one {
+  right: 18%;
+  top: 17%;
+}
+
+.candidate-card__spark--two {
+  left: 17%;
+  bottom: 22%;
+  width: 5px;
+  height: 5px;
+  animation-delay: -2.2s;
+}
+
+.candidate-card__underline {
+  width: 54%;
+  height: 1px;
+  margin: 14px auto 0;
+  opacity: 0.3;
+  transform-origin: center;
+  background: linear-gradient(90deg, transparent, oklch(0.84 0.11 85 / 0.8), transparent);
+  transition: opacity 400ms ease;
+  animation: candidate-border-breathe 5s ease-in-out infinite;
+}
+
+.candidate-card:hover .candidate-card__underline {
+  opacity: 0.9;
+}
+
+.candidate-modal__glow {
+  position: absolute;
+  inset: auto 12% 8% 12%;
+  height: 90px;
+  pointer-events: none;
+  border-radius: 999px;
+  background: oklch(0.74 0.13 85 / 0.12);
+  filter: blur(36px);
+}
+
 .scrollbar-gold::-webkit-scrollbar { width: 8px; }
 .scrollbar-gold::-webkit-scrollbar-track { background: oklch(0.18 0.05 165); }
 .scrollbar-gold::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #C9A24B, #8E6B25); border-radius: 4px; }

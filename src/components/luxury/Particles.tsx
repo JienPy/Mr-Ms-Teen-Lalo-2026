@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function seeded(seed: number) {
   const x = Math.sin(seed * 999) * 10000;
@@ -6,6 +6,7 @@ function seeded(seed: number) {
 }
 
 export function GoldParticles({ count = 36 }: { count?: number }) {
+  const [mounted, setMounted] = useState(false);
   const dots = useMemo(
     () =>
       Array.from({ length: count }, (_, i) => ({
@@ -19,6 +20,13 @@ export function GoldParticles({ count = 36 }: { count?: number }) {
       })),
     [count],
   );
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {dots.map((d) => (
