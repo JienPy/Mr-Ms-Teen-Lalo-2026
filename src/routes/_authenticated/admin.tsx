@@ -19,6 +19,17 @@ export const Route = createFileRoute("/_authenticated/admin")({
 const TABS = ["Overview", "Candidates", "Tickets", "Announcements", "Gallery", "Videos", "Sponsors", "Officials", "Settings"] as const;
 type Tab = typeof TABS[number];
 type DashboardRole = "admin" | "chairman";
+const TICKET_PRICE = 50;
+const REMIT_PER_TICKET = 45;
+const CANDIDATE_SHARE_PER_TICKET = TICKET_PRICE - REMIT_PER_TICKET;
+
+function peso(value: number) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(value) ? value : 0);
+}
 
 function localDateInputValue(date = new Date()) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -54,6 +65,20 @@ function weekRangeForDate(dateValue = localDateInputValue()) {
   return {
     start: localDateInputValue(start),
     end: localDateInputValue(end),
+  };
+}
+
+function ticketMoney(quantity: number, remittedQuantity = 0) {
+  const issued = Math.max(0, Number(quantity) || 0);
+  const remitted = Math.max(0, Math.min(Number(remittedQuantity) || 0, issued));
+  return {
+    issued,
+    remitted,
+    gross: issued * TICKET_PRICE,
+    expectedRemit: issued * REMIT_PER_TICKET,
+    remittedAmount: remitted * REMIT_PER_TICKET,
+    balance: (issued - remitted) * REMIT_PER_TICKET,
+    candidateShare: issued * CANDIDATE_SHARE_PER_TICKET,
   };
 }
 
@@ -589,6 +614,9 @@ function TicketsAdmin() {
     entry_date: localDateInputValue(),
     serial_from: "",
     serial_to: "",
+    remitted_quantity: 0,
+    remittance_date: "",
+    remittance_note: "",
     note: "",
   };
 
@@ -656,7 +684,55 @@ function TicketsAdmin() {
   const [entryDate, setEntryDate] = useState("");
   const [entryPage, setEntryPage] = useState(1);
   const formWeek = weekRangeForDate(form.entry_date);
+  const formMoney = ticketMoney(Number(form.quantity), Number(form.remitted_quantity));
   const totalWeek = (standings.data ?? []).reduce((s: number, r: any) => s + Number(r.week_tickets), 0);
+  const publishedTicketEntries = (ticketEntries.data ?? []).filter((entry: any) => entry.is_published);
+  const analytics = publishedTicketEntries.reduce((summary: any, entry: any) => {
+    const money = ticketMoney(Number(entry.quantity), Number(entry.remitted_quantity));
+    summary.issued += money.issued;
+    summary.remittedTickets += money.remitted;
+    summary.gross += money.gross;
+    summary.expectedRemit += money.expectedRemit;
+    summary.remittedAmount += money.remittedAmount;
+    summary.balance += money.balance;
+    summary.candidateShare += money.candidateShare;
+    return summary;
+  }, { issued: 0, remittedTickets: 0, gross: 0, expectedRemit: 0, remittedAmount: 0, balance: 0, candidateShare: 0 });
+  const candidateAnalytics = Array.from(publishedTicketEntries.reduce((map: Map<string, any>, entry: any) => {
+    const candidate = entry.candidates;
+    const key = entry.candidate_id;
+    const row = map.get(key) ?? {
+      candidate_id: key,
+      name: candidate?.name ?? "Unknown candidate",
+      division: candidate?.division,
+      sitio: candidate?.sitio,
+      issued: 0,
+      remittedTickets: 0,
+      gross: 0,
+      expectedRemit: 0,
+      remittedAmount: 0,
+      balance: 0,
+      candidateShare: 0,
+      lastRemittanceDate: "",
+    };
+    const money = ticketMoney(Number(entry.quantity), Number(entry.remitted_quantity));
+    row.issued += money.issued;
+    row.remittedTickets += money.remitted;
+    row.gross += money.gross;
+    row.expectedRemit += money.expectedRemit;
+    row.remittedAmount += money.remittedAmount;
+    row.balance += money.balance;
+    row.candidateShare += money.candidateShare;
+    if (entry.remittance_date && (!row.lastRemittanceDate || entry.remittance_date > row.lastRemittanceDate)) {
+      row.lastRemittanceDate = entry.remittance_date;
+    }
+    map.set(key, row);
+    return map;
+  }, new Map<string, any>()).values()).sort((a: any, b: any) =>
+    b.balance - a.balance ||
+    b.expectedRemit - a.expectedRemit ||
+    a.name.localeCompare(b.name)
+  );
   const filteredEntries = (ticketEntries.data ?? []).filter((entry: any) => {
     const candidate = entry.candidates;
     const haystack = [
@@ -692,12 +768,19 @@ function TicketsAdmin() {
   const saveEntry = useMutation({
     mutationFn: async () => {
       if (!form.candidate_id) throw new Error("Pick a candidate");
+      const quantity = Number(form.quantity);
+      const remittedQuantity = Number(form.remitted_quantity) || 0;
+      if (remittedQuantity < 0) throw new Error("Remitted tickets cannot be negative");
+      if (remittedQuantity > quantity) throw new Error("Remitted tickets cannot be more than issued tickets");
       const payload = {
         candidate_id: form.candidate_id,
-        quantity: Number(form.quantity),
+        quantity,
         entry_date: form.entry_date,
         serial_from: form.serial_from || null,
         serial_to: form.serial_to || null,
+        remitted_quantity: remittedQuantity,
+        remittance_date: form.remittance_date || null,
+        remittance_note: form.remittance_note || null,
         note: form.note || null,
       };
       const { error } = editingEntryId
@@ -745,12 +828,71 @@ function TicketsAdmin() {
       entry_date: entry.entry_date,
       serial_from: entry.serial_from ?? "",
       serial_to: entry.serial_to ?? "",
+      remitted_quantity: entry.remitted_quantity ?? 0,
+      remittance_date: entry.remittance_date ?? "",
+      remittance_note: entry.remittance_note ?? "",
       note: entry.note ?? "",
     });
   }
 
   return (
     <div className="space-y-6">
+      <Panel title="Cash Analytics">
+        <p className="text-sm text-(--ivory)/70 mb-4">
+          Published pickups are treated as sold. Each ticket is {peso(TICKET_PRICE)}: {peso(REMIT_PER_TICKET)} remittance to you and {peso(CANDIDATE_SHARE_PER_TICKET)} candidate share.
+        </p>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {[
+            ["Issued Tickets", analytics.issued.toLocaleString()],
+            ["Expected Remit", peso(analytics.expectedRemit)],
+            ["Money on Hand", peso(analytics.remittedAmount)],
+            ["Balance to Collect", peso(analytics.balance)],
+            ["Candidate Share", peso(analytics.candidateShare)],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-(--gold)/15 bg-(--emerald-deep)/45 p-4">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-(--gold-soft)/70">{label}</div>
+              <div className="mt-2 font-display text-2xl text-(--ivory)">{value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-[10px] uppercase tracking-[0.22em] text-(--gold-soft)/70 text-left">
+              <tr>
+                <th className="p-2">Candidate</th>
+                <th className="p-2 text-right">Issued</th>
+                <th className="p-2 text-right">Remitted</th>
+                <th className="p-2 text-right">Expected</th>
+                <th className="p-2 text-right">Money on Hand</th>
+                <th className="p-2 text-right">Balance</th>
+                <th className="p-2 text-right">Candidate Share</th>
+                <th className="p-2">Last Remit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidateAnalytics.map((row: any) => (
+                <tr key={row.candidate_id} className="border-t border-(--gold)/10">
+                  <td className="p-2">
+                    {row.division === "mr" ? "Mr. " : "Ms. "}{row.name}
+                    {row.sitio && <span className="text-(--ivory)/45"> · {row.sitio}</span>}
+                  </td>
+                  <td className="p-2 text-right tabular-nums">{row.issued}</td>
+                  <td className="p-2 text-right tabular-nums">{row.remittedTickets}</td>
+                  <td className="p-2 text-right tabular-nums">{peso(row.expectedRemit)}</td>
+                  <td className="p-2 text-right tabular-nums text-(--gold-soft)">{peso(row.remittedAmount)}</td>
+                  <td className="p-2 text-right tabular-nums text-(--destructive)">{peso(row.balance)}</td>
+                  <td className="p-2 text-right tabular-nums">{peso(row.candidateShare)}</td>
+                  <td className="p-2 text-(--ivory)/60">{row.lastRemittanceDate || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {candidateAnalytics.length === 0 && (
+            <p className="text-center text-(--ivory)/50 italic py-8">No published ticket pickups yet.</p>
+          )}
+        </div>
+      </Panel>
+
       <Panel title={editingEntryId ? "Edit Ticket Pickup" : "Encode Ticket Pickup"}>
         <p className="text-sm text-(--ivory)/70 mb-4">
           New pickups are saved as drafts first. Publish only after checking the candidate, quantity, date, and serial numbers.
@@ -769,7 +911,24 @@ function TicketsAdmin() {
           <TextField label="Date Kinuha" type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} />
           <TextField label="Serial From" value={form.serial_from} onChange={(e) => setForm({ ...form, serial_from: e.target.value })} />
           <TextField label="Serial To" value={form.serial_to} onChange={(e) => setForm({ ...form, serial_to: e.target.value })} />
+          <TextField label="Remitted Tickets" type="number" min={0} max={form.quantity} value={form.remitted_quantity} onChange={(e) => setForm({ ...form, remitted_quantity: Number(e.target.value) })} />
+          <TextField label="Remittance Date" type="date" value={form.remittance_date} onChange={(e) => setForm({ ...form, remittance_date: e.target.value })} />
+          <TextField label="Remittance Note" value={form.remittance_note} onChange={(e) => setForm({ ...form, remittance_note: e.target.value })} />
           <TextField label="Note (optional)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+        </div>
+        <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-5 gap-3 rounded-xl border border-(--gold)/15 bg-(--emerald-deep)/35 p-4">
+          {[
+            ["Pickup Value", peso(formMoney.gross)],
+            ["Expected Remit", peso(formMoney.expectedRemit)],
+            ["Remitted Now", peso(formMoney.remittedAmount)],
+            ["Balance", peso(formMoney.balance)],
+            ["Candidate Share", peso(formMoney.candidateShare)],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <div className="text-[9px] uppercase tracking-[0.22em] text-(--gold-soft)/65">{label}</div>
+              <div className="mt-1 font-display text-xl text-(--ivory)">{value}</div>
+            </div>
+          ))}
         </div>
         <div className="mt-4 flex justify-end gap-3">
           {editingEntryId && <button onClick={resetForm} className="text-(--ivory)/70 text-xs uppercase tracking-[0.2em]">Cancel Edit</button>}
@@ -799,6 +958,7 @@ function TicketsAdmin() {
           {pagedEntries.map((entry: any) => {
             const candidate = entry.candidates;
             const entryWeek = weekRangeForDate(entry.entry_date);
+            const entryMoney = ticketMoney(Number(entry.quantity), Number(entry.remitted_quantity));
             return (
               <div key={entry.id} className="p-4 rounded-lg border border-(--gold)/15 grid lg:grid-cols-[1fr_auto] gap-4 items-center">
                 <div>
@@ -813,6 +973,14 @@ function TicketsAdmin() {
                     {entry.quantity} tickets · {entry.entry_date}
                     {(entry.serial_from || entry.serial_to) && <> · Serial {entry.serial_from || "?"} to {entry.serial_to || "?"}</>}
                     {entry.note && <> · {entry.note}</>}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-(--ivory)/55">
+                    <span>Expected: <span className="text-(--ivory)/80">{peso(entryMoney.expectedRemit)}</span></span>
+                    <span>Remitted: <span className="text-(--gold-soft)">{entryMoney.remitted} tickets / {peso(entryMoney.remittedAmount)}</span></span>
+                    <span>Balance: <span className={entryMoney.balance > 0 ? "text-(--destructive)" : "text-(--gold-soft)"}>{peso(entryMoney.balance)}</span></span>
+                    <span>Candidate share: <span className="text-(--ivory)/80">{peso(entryMoney.candidateShare)}</span></span>
+                    {entry.remittance_date && <span>Last paid: <span className="text-(--ivory)/80">{entry.remittance_date}</span></span>}
+                    {entry.remittance_note && <span>Payment note: <span className="text-(--ivory)/80">{entry.remittance_note}</span></span>}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
