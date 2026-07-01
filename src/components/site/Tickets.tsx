@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Facebook, Phone, X } from "lucide-react";
+import { Facebook, X } from "lucide-react";
 import { Reveal } from "@/components/luxury/Reveal";
 import { candidatesQuery } from "@/lib/queries";
 import officialTicket from "@/assets/ticket-regular.png";
@@ -22,14 +22,6 @@ function ContactRow({ person, label }: { person: any; label: string }) {
             className="inline-flex items-center gap-2 rounded-full border border-(--gold)/25 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-(--gold-soft) hover:text-(--gold)"
           >
             <Facebook className="w-4 h-4" /> Facebook
-          </a>
-        )}
-        {person.contact_number && (
-          <a
-            href={`tel:${person.contact_number}`}
-            className="inline-flex items-center gap-2 rounded-full border border-(--gold)/25 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-(--gold-soft) hover:text-(--gold)"
-          >
-            <Phone className="w-4 h-4" /> {person.contact_number}
           </a>
         )}
       </div>
