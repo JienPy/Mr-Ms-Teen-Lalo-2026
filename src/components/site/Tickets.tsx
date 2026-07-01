@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Facebook, Phone, X } from "lucide-react";
 import { Reveal } from "@/components/luxury/Reveal";
-import { candidatesQuery, pageantPeopleQuery } from "@/lib/queries";
+import { candidatesQuery } from "@/lib/queries";
 import officialTicket from "@/assets/ticket-regular.png";
 
 function ContactRow({ person, label }: { person: any; label: string }) {
@@ -48,8 +48,6 @@ export function Tickets({
 }) {
   const displayTicket = ticketImage || officialTicket;
   const { data: candidates = [] } = useSuspenseQuery(candidatesQuery);
-  const { data: people = [] } = useSuspenseQuery(pageantPeopleQuery);
-  const organizers = people.filter((person: any) => person.group_type === "organizer");
   const [open, setOpen] = useState(false);
 
   return (
@@ -111,16 +109,6 @@ export function Tickets({
               ))}
             </div>
 
-            {organizers.length > 0 && (
-              <>
-                <h4 className="mt-8 mb-3 text-[10px] uppercase tracking-[0.35em] text-(--gold-soft)/70">Organizers</h4>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {organizers.map((organizer: any) => (
-                    <ContactRow key={organizer.id} person={organizer} label={organizer.role || "Organizer"} />
-                  ))}
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}

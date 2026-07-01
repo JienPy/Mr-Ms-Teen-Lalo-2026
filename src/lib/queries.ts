@@ -19,11 +19,14 @@ export const DEFAULT_PAGEANT_PEOPLE = [
 ];
 
 export const DEFAULT_SPONSORS = [
-  { id: "sponsor-jun-baretto-tabi", name: "Jun Baretto Tabi", tier: "community", logo_url: null, description: null, link_url: null, sort_order: 1, is_visible: true },
-  { id: "sponsor-doris-obciana-maeda", name: "Doris Obciana Maeda", tier: "community", logo_url: null, description: null, link_url: null, sort_order: 2, is_visible: true },
-  { id: "sponsor-la-imperial", name: "LA Imperial", tier: "community", logo_url: null, description: null, link_url: null, sort_order: 3, is_visible: true },
   { id: "sponsor-banahaw-glass-villa", name: "Banahaw Glass Villa", tier: "community", logo_url: null, description: null, link_url: null, sort_order: 4, is_visible: true },
 ];
+
+const REMOVED_SEEDED_SPONSORS = new Set([
+  "jun baretto tabi",
+  "doris obciana maeda",
+  "la imperial",
+]);
 
 function personKey(person: any) {
   return `${person.group_type ?? ""}:${String(person.name ?? "").toLowerCase()}`;
@@ -40,7 +43,7 @@ export function withDefaultPageantPeople(data: any[] | null | undefined) {
 }
 
 export function withDefaultSponsors(data: any[] | null | undefined) {
-  const rows = data ?? [];
+  const rows = (data ?? []).filter((sponsor) => !REMOVED_SEEDED_SPONSORS.has(sponsorKey(sponsor)));
   const keys = new Set(rows.map(sponsorKey));
   return [...rows, ...DEFAULT_SPONSORS.filter((sponsor) => !keys.has(sponsorKey(sponsor)))];
 }
