@@ -38,8 +38,9 @@ export function Officials() {
   const { data = [] } = useSuspenseQuery(pageantPeopleQuery);
   const sk = data.filter((person: any) => person.group_type === "sk");
   const organizers = data.filter((person: any) => person.group_type === "organizer");
+  const mastersOfCeremony = data.filter((person: any) => person.group_type === "master_of_ceremony");
 
-  if (sk.length === 0 && organizers.length === 0) return null;
+  if (sk.length === 0 && organizers.length === 0 && mastersOfCeremony.length === 0) return null;
 
   return (
     <>
@@ -55,6 +56,14 @@ export function Officials() {
         <Section id="organizers" eyebrow="Production Team" title="Organizers">
           <div className="flex flex-wrap justify-center gap-x-10 gap-y-12 max-w-5xl mx-auto">
             {organizers.map((person: any) => <PersonCard key={person.id} person={person} />)}
+          </div>
+        </Section>
+      )}
+
+      {mastersOfCeremony.length > 0 && (
+        <Section id="masters-of-ceremony" eyebrow="Program Hosts" title="Master of Ceremony">
+          <div className="flex flex-wrap justify-center gap-x-10 gap-y-12 max-w-5xl mx-auto">
+            {mastersOfCeremony.map((person: any) => <PersonCard key={person.id} person={person} />)}
           </div>
         </Section>
       )}

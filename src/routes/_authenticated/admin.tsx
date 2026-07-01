@@ -1543,6 +1543,7 @@ function OfficialsAdmin() {
 
   const sk = data.filter((person: any) => person.group_type === "sk");
   const organizers = data.filter((person: any) => person.group_type === "organizer");
+  const mastersOfCeremony = data.filter((person: any) => person.group_type === "master_of_ceremony");
 
   function PeopleList({ title, people }: { title: string; people: any[] }) {
     return (
@@ -1586,12 +1587,14 @@ function OfficialsAdmin() {
         <div className="flex flex-wrap gap-2">
           <GoldButton onClick={() => setEditing({ group_type: "sk", name: "", role: "SK Kagawad", sort_order: (sk.length + 1), is_visible: true })}><Plus className="w-4 h-4" /> SK</GoldButton>
           <GoldButton onClick={() => setEditing({ group_type: "organizer", name: "", role: "Organizer", sort_order: (organizers.length + 1), is_visible: true })}><Plus className="w-4 h-4" /> Organizer</GoldButton>
+          <GoldButton onClick={() => setEditing({ group_type: "master_of_ceremony", name: "", role: "Master of Ceremony", sort_order: (mastersOfCeremony.length + 1), is_visible: true })}><Plus className="w-4 h-4" /> MC</GoldButton>
         </div>
       }
     >
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid xl:grid-cols-3 gap-6">
         <PeopleList title="SK Officials" people={sk} />
         <PeopleList title="Organizers" people={organizers} />
+        <PeopleList title="Masters of Ceremony" people={mastersOfCeremony} />
       </div>
 
       {editing && (
@@ -1603,6 +1606,7 @@ function OfficialsAdmin() {
               <Select label="Section" value={editing.group_type ?? "sk"} onChange={(e) => setEditing({ ...editing, group_type: e.target.value })}>
                 <option value="sk">SK Officials</option>
                 <option value="organizer">Organizers</option>
+                <option value="master_of_ceremony">Master of Ceremony</option>
               </Select>
               <TextField label="Sort Order" type="number" value={editing.sort_order ?? 100} onChange={(e) => setEditing({ ...editing, sort_order: e.target.value })} />
               <TextField label="Name" value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
