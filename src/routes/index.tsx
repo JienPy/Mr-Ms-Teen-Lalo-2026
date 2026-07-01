@@ -59,7 +59,13 @@ function Home() {
           </Reveal>
         </Section>
 
-        <Section id="leaderboard" eyebrow="Weekly Standings" title="Top 7 of the Week" subtitle="Qualified candidates are shown in no particular order.">
+        <Section
+          id="leaderboard"
+          eyebrow="Weekly Standings"
+          title="Top 7 of the Week"
+          descriptor="Highest Ticket Sales"
+          subtitle="Qualified candidates are shown in no particular order."
+        >
           <Leaderboard />
         </Section>
 

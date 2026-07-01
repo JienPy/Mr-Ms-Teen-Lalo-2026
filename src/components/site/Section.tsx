@@ -5,6 +5,7 @@ export function Section({
   id,
   eyebrow,
   title,
+  descriptor,
   subtitle,
   children,
   className,
@@ -12,6 +13,7 @@ export function Section({
   id?: string;
   eyebrow?: string;
   title?: string;
+  descriptor?: string;
   subtitle?: string;
   children: React.ReactNode;
   className?: string;
@@ -27,6 +29,11 @@ export function Section({
               )}
               {title && (
                 <h2 className="mt-3 font-display text-3xl sm:text-5xl text-gold-gradient">{title}</h2>
+              )}
+              {descriptor && (
+                <div className="mt-4 text-[10px] sm:text-xs uppercase tracking-[0.35em] text-(--gold-soft)">
+                  {descriptor}
+                </div>
               )}
               {subtitle && (
                 <p className="mt-4 font-serif italic text-(--ivory)/75 max-w-2xl mx-auto text-lg">{subtitle}</p>
