@@ -26,7 +26,15 @@ function displayTopSeven(data: any[], division: "mr" | "ms") {
 
 function Avatar({ candidate, image }: { candidate: any; image?: string | null }) {
   if (image) {
-    return <img src={image} alt={candidate.name} className="h-12 w-12 shrink-0 rounded-full object-cover object-[center_24%] ring-1 ring-(--gold)/40 sm:h-16 sm:w-16" />;
+    return (
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full ring-1 ring-(--gold)/40 sm:h-16 sm:w-16">
+        <img
+          src={image}
+          alt={candidate.name}
+          className="h-full w-full scale-[1.55] object-cover object-[center_18%]"
+        />
+      </div>
+    );
   }
 
   return (
