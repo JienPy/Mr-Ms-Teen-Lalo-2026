@@ -31,7 +31,7 @@ function Avatar({ candidate, image }: { candidate: any; image?: string | null })
         <img
           src={image}
           alt={candidate.name}
-          className="h-full w-full translate-y-[8%] scale-[1.55] object-cover object-[center_18%]"
+          className="h-full w-full translate-y-[14%] scale-[1.8] object-cover object-[center_18%]"
         />
       </div>
     );
