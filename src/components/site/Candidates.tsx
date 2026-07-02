@@ -43,6 +43,7 @@ export function Candidates() {
   const { data: candidatePhotos } = useSuspenseQuery(candidatePhotosQuery);
   const [tab, setTab] = useState<"mr" | "ms">("ms");
   const [open, setOpen] = useState<any | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<any | null>(null);
   const list = (data ?? []).filter((c: any) => c.division === tab);
   const openPortrait = open ? mainPortraitFor(open, candidatePhotos) : null;
   const openGallery = open ? profileGalleryFor(open, candidatePhotos) : [];
@@ -102,7 +103,10 @@ export function Candidates() {
                     animate="rest"
                   >
                     <motion.button
-                      onClick={() => setOpen(c)}
+                      onClick={() => {
+                        setPreviewPhoto(null);
+                        setOpen(c);
+                      }}
                       whileHover={{ y: -8 }}
                       whileTap={{ scale: 0.985 }}
                       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -118,7 +122,7 @@ export function Candidates() {
                           <motion.img
                             src={portrait}
                             alt={c.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover object-[center_28%]"
                             variants={portraitVariants}
                           />
                         ) : (
@@ -180,7 +184,10 @@ export function Candidates() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md grid place-items-center p-4"
-            onClick={() => setOpen(null)}
+            onClick={() => {
+              setPreviewPhoto(null);
+              setOpen(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.92, opacity: 0, y: 20 }}
@@ -197,7 +204,7 @@ export function Candidates() {
                   <motion.img
                     src={openPortrait}
                     alt={open.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-[center_28%]"
                     initial={{ scale: 1.08, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
@@ -209,14 +216,32 @@ export function Candidates() {
                 {openGallery.length > 0 && (
                   <div className="p-3 grid grid-cols-3 gap-2 border-t border-(--gold)/15">
                     {openGallery.map((photo) => (
-                      <img key={photo.id} src={photo.image_url} alt={photo.caption ?? open.name} className="aspect-square w-full rounded-md object-cover border border-(--gold)/20" />
+                      <button
+                        key={photo.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewPhoto(photo);
+                        }}
+                        className="group overflow-hidden rounded-md border border-(--gold)/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--gold)"
+                        aria-label={`View ${photo.caption ?? open.name} photo larger`}
+                      >
+                        <img
+                          src={photo.image_url}
+                          alt={photo.caption ?? open.name}
+                          className="aspect-square w-full object-cover object-[center_28%] transition-transform duration-500 group-hover:scale-105"
+                        />
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
               <div className="p-8 relative">
                 <button
-                  onClick={() => setOpen(null)}
+                  onClick={() => {
+                    setPreviewPhoto(null);
+                    setOpen(null);
+                  }}
                   className="absolute top-4 right-4 text-(--gold-soft)/70 hover:text-(--gold) transition-colors"
                   aria-label="Close"
                 >
@@ -255,6 +280,41 @@ export function Candidates() {
                 )}
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {previewPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-md grid place-items-center p-4"
+            onClick={() => setPreviewPhoto(null)}
+          >
+            <button
+              onClick={() => setPreviewPhoto(null)}
+              className="absolute top-4 right-4 text-(--gold-soft)/80 hover:text-(--gold) transition-colors"
+              aria-label="Close photo preview"
+            >
+              <X className="w-7 h-7" />
+            </button>
+            <motion.img
+              src={previewPhoto.image_url}
+              alt={previewPhoto.caption ?? open?.name ?? "Candidate photo"}
+              className="max-h-[88vh] max-w-[92vw] rounded-xl object-contain ornate-border shadow-[0_30px_100px_-30px_rgba(201,162,75,0.65)]"
+              initial={{ opacity: 0, scale: 0.96, y: 18 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 12 }}
+              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {previewPhoto.caption && (
+              <div className="absolute bottom-5 max-w-[90vw] rounded-full border border-(--gold)/25 bg-(--emerald-deep)/80 px-4 py-2 text-center font-serif text-sm text-(--ivory)/80">
+                {previewPhoto.caption}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
