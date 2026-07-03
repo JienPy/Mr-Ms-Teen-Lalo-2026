@@ -36,11 +36,15 @@ function top7Transform(photo?: any) {
 
 function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
   const image = photo?.image_url ?? candidate.photo_url;
+  const cropKey = photo
+    ? `${photo.id}-${photo.top7_zoom ?? 1}-${photo.top7_offset_x ?? 0}-${photo.top7_offset_y ?? 0}`
+    : candidate.candidate_id;
 
   if (image) {
     return (
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-(--emerald-deep)/70 ring-1 ring-(--gold)/40 sm:h-16 sm:w-16">
         <img
+          key={cropKey}
           src={image}
           alt={candidate.name}
           className="h-full w-full object-contain"
