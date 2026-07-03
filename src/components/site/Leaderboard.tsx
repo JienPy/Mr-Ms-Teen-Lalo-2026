@@ -35,9 +35,10 @@ function top7Transform(photo?: any) {
 }
 
 function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
-  const image = photo?.image_url ?? candidate.photo_url;
+  const image = photo?.top7_crop_url ?? photo?.image_url ?? candidate.photo_url;
+  const useGeneratedCrop = !!photo?.top7_crop_url;
   const cropKey = photo
-    ? `${photo.id}-${photo.top7_zoom ?? 1}-${photo.top7_offset_x ?? 0}-${photo.top7_offset_y ?? 0}`
+    ? `${photo.id}-${photo.top7_crop_url ?? ""}-${photo.top7_zoom ?? 1}-${photo.top7_offset_x ?? 0}-${photo.top7_offset_y ?? 0}`
     : candidate.candidate_id;
 
   if (image) {
@@ -48,7 +49,7 @@ function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
           src={image}
           alt={candidate.name}
           className="h-full w-full object-cover"
-          style={top7Transform(photo)}
+          style={useGeneratedCrop ? undefined : top7Transform(photo)}
         />
       </div>
     );

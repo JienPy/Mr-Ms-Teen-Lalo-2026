@@ -165,6 +165,37 @@ async function uploadToStorage(file: File, folder: string): Promise<string> {
   return data.publicUrl;
 }
 
+async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: number, offsetY: number) {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.decoding = "async";
+  image.src = imageUrl;
+  await image.decode();
+
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not prepare crop image.");
+
+  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const drawWidth = imageRatio > 1 ? size : size * imageRatio;
+  const drawHeight = imageRatio > 1 ? size / imageRatio : size;
+
+  ctx.fillStyle = "#002d1b";
+  ctx.fillRect(0, 0, size, size);
+  ctx.translate(size / 2 + (offsetX / 100) * size, size / 2 + (offsetY / 100) * size);
+  ctx.scale(zoom, zoom);
+  ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((result) => (result ? resolve(result) : reject(new Error("Could not export crop image."))), "image/jpeg", 0.9);
+  });
+
+  return new File([blob], `top7-crop-${crypto.randomUUID()}.jpg`, { type: "image/jpeg" });
+}
+
 function Panel({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="glass-emerald rounded-2xl p-6">
@@ -348,7 +379,7 @@ function CandidatesAdmin() {
     },
     onError: (e: any) => {
       const message = String(e.message ?? "");
-      if (message.includes("top7_offset") || message.includes("top7_zoom")) {
+      if (message.includes("top7_offset") || message.includes("top7_zoom") || message.includes("top7_crop_url")) {
         toast.error("Database update needed: run the Top 7 crop SQL in Supabase first.");
         return;
       }
@@ -552,6 +583,7 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
   const [top7Zoom, setTop7Zoom] = useState(clampCropZoom(Number(photo.top7_zoom) || 1));
   const [top7OffsetX, setTop7OffsetX] = useState(clampCropOffset(Number(photo.top7_offset_x) || 0));
   const [top7OffsetY, setTop7OffsetY] = useState(clampCropOffset(Number(photo.top7_offset_y) || 0));
+  const [savingCrop, setSavingCrop] = useState(false);
 
   useEffect(() => {
     setCaption(photo.caption ?? "");
@@ -571,15 +603,28 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
     });
   }
 
-  function saveTop7Crop() {
-    updatePhoto.mutate({
-      id: photo.id,
-      patch: {
-        top7_zoom: Number(clampCropZoom(top7Zoom).toFixed(2)),
-        top7_offset_x: Number(clampCropOffset(top7OffsetX).toFixed(2)),
-        top7_offset_y: Number(clampCropOffset(top7OffsetY).toFixed(2)),
-      },
-    });
+  async function saveTop7Crop() {
+    setSavingCrop(true);
+    try {
+      const zoom = Number(clampCropZoom(top7Zoom).toFixed(2));
+      const offsetX = Number(clampCropOffset(top7OffsetX).toFixed(2));
+      const offsetY = Number(clampCropOffset(top7OffsetY).toFixed(2));
+      const cropFile = await createTop7CropFile(photo.image_url, zoom, offsetX, offsetY);
+      const cropUrl = await uploadToStorage(cropFile, `candidates/${photo.candidate_id}/top7-crops`);
+      updatePhoto.mutate({
+        id: photo.id,
+        patch: {
+          top7_zoom: zoom,
+          top7_offset_x: offsetX,
+          top7_offset_y: offsetY,
+          top7_crop_url: cropUrl,
+        },
+      });
+    } catch (e: any) {
+      toast.error(e.message ?? "Could not save Top 7 crop.");
+    } finally {
+      setSavingCrop(false);
+    }
   }
 
   function resetTop7Crop() {
@@ -592,6 +637,7 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
         top7_zoom: 1,
         top7_offset_x: 0,
         top7_offset_y: 0,
+        top7_crop_url: null,
       },
     });
   }
@@ -709,8 +755,12 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
             <button onClick={resetTop7Crop} className="text-[10px] uppercase tracking-[0.2em] text-(--ivory)/55 hover:text-(--ivory)">
               Reset
             </button>
-            <button onClick={saveTop7Crop} className="text-[10px] uppercase tracking-[0.2em] text-(--gold-soft) hover:text-(--gold)">
-              Save Crop
+            <button
+              onClick={saveTop7Crop}
+              disabled={savingCrop}
+              className="text-[10px] uppercase tracking-[0.2em] text-(--gold-soft) hover:text-(--gold) disabled:opacity-50"
+            >
+              {savingCrop ? "Saving..." : "Save Crop"}
             </button>
           </div>
         </div>

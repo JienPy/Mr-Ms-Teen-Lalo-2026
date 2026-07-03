@@ -9,6 +9,7 @@ export type CandidatePhoto = {
   top7_zoom?: number | null;
   top7_offset_x?: number | null;
   top7_offset_y?: number | null;
+  top7_crop_url?: string | null;
   sort_order?: number | null;
 };
 
