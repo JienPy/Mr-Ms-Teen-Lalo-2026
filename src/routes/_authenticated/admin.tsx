@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -545,16 +545,18 @@ function CandidatePhotoLibrary({ candidateId, photos }: { candidateId: string; p
 
 function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; updatePhoto: any; deletePhoto: any }) {
   const clampCropOffset = (value: number) => Math.max(-35, Math.min(35, value));
+  const clampCropZoom = (value: number) => Math.max(0.7, Math.min(3, value));
+  const dragStartRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [sortOrder, setSortOrder] = useState(String(photo.sort_order ?? 0));
-  const [top7Zoom, setTop7Zoom] = useState(Number(photo.top7_zoom) || 1);
+  const [top7Zoom, setTop7Zoom] = useState(clampCropZoom(Number(photo.top7_zoom) || 1));
   const [top7OffsetX, setTop7OffsetX] = useState(clampCropOffset(Number(photo.top7_offset_x) || 0));
   const [top7OffsetY, setTop7OffsetY] = useState(clampCropOffset(Number(photo.top7_offset_y) || 0));
 
   useEffect(() => {
     setCaption(photo.caption ?? "");
     setSortOrder(String(photo.sort_order ?? 0));
-    setTop7Zoom(Number(photo.top7_zoom) || 1);
+    setTop7Zoom(clampCropZoom(Number(photo.top7_zoom) || 1));
     setTop7OffsetX(clampCropOffset(Number(photo.top7_offset_x) || 0));
     setTop7OffsetY(clampCropOffset(Number(photo.top7_offset_y) || 0));
   }, [photo.caption, photo.sort_order, photo.top7_zoom, photo.top7_offset_x, photo.top7_offset_y]);
@@ -573,7 +575,7 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
     updatePhoto.mutate({
       id: photo.id,
       patch: {
-        top7_zoom: Number(top7Zoom.toFixed(2)),
+        top7_zoom: Number(clampCropZoom(top7Zoom).toFixed(2)),
         top7_offset_x: Number(clampCropOffset(top7OffsetX).toFixed(2)),
         top7_offset_y: Number(clampCropOffset(top7OffsetY).toFixed(2)),
       },
@@ -598,6 +600,36 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
     transform: `translate(${top7OffsetX}%, ${top7OffsetY}%) scale(${top7Zoom})`,
     transformOrigin: "center",
   };
+
+  function startDragCrop(event: any) {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    dragStartRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: top7OffsetX,
+      offsetY: top7OffsetY,
+    };
+  }
+
+  function dragCrop(event: any) {
+    if (!dragStartRef.current) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dragScale = 100 / Math.max(rect.width, 1) / Math.max(top7Zoom, 0.7);
+    setTop7OffsetX(clampCropOffset(dragStartRef.current.offsetX + (event.clientX - dragStartRef.current.startX) * dragScale));
+    setTop7OffsetY(clampCropOffset(dragStartRef.current.offsetY + (event.clientY - dragStartRef.current.startY) * dragScale));
+  }
+
+  function endDragCrop(event: any) {
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragStartRef.current = null;
+  }
+
+  function zoomCrop(event: any) {
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? -1 : 1;
+    setTop7Zoom((value) => clampCropZoom(Number((value + direction * 0.05).toFixed(2))));
+  }
 
   return (
     <div className="rounded-lg border border-(--gold)/15 p-3">
@@ -652,18 +684,25 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
       {photo.show_in_top7 && (
         <div className="mt-3 rounded-lg border border-(--gold)/15 bg-(--emerald-deep)/40 p-3">
           <div className="flex flex-wrap items-center gap-4">
-            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-(--gold)/35 bg-(--secondary)">
+            <div
+              className="relative grid h-24 w-24 shrink-0 cursor-grab select-none place-items-center overflow-hidden rounded-full border border-(--gold)/35 bg-(--secondary) touch-none active:cursor-grabbing"
+              onPointerDown={startDragCrop}
+              onPointerMove={dragCrop}
+              onPointerUp={endDragCrop}
+              onPointerCancel={endDragCrop}
+              onWheel={zoomCrop}
+              title="Drag to position. Scroll to zoom."
+            >
               <img
                 src={photo.image_url}
                 alt={photo.caption ?? "Top 7 preview"}
-                className="h-full w-full object-contain"
+                draggable={false}
+                className="pointer-events-none h-full w-full object-contain"
                 style={top7PreviewStyle}
               />
             </div>
             <div className="min-w-[180px] flex-1 space-y-3">
               <CropSlider label="Zoom" value={top7Zoom} min={0.7} max={3} step={0.05} suffix="x" onChange={setTop7Zoom} />
-              <CropSlider label="Left / Right" value={top7OffsetX} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetX} />
-              <CropSlider label="Up / Down" value={top7OffsetY} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetY} />
             </div>
           </div>
           <div className="mt-3 flex justify-end gap-3">
