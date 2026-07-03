@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { candidatePhotosQuery, leaderboardQuery } from "@/lib/queries";
-import { top7ImageFor } from "@/lib/candidatePhotos";
+import { top7PhotoFor } from "@/lib/candidatePhotos";
 import { Reveal } from "@/components/luxury/Reveal";
 
 function hiddenSortValue(seed: string) {
@@ -24,14 +24,27 @@ function displayTopSeven(data: any[], division: "mr" | "ms") {
   });
 }
 
-function Avatar({ candidate, image }: { candidate: any; image?: string | null }) {
+function top7Transform(photo?: any) {
+  const zoom = Number(photo?.top7_zoom) || 1.8;
+  const offsetX = Number(photo?.top7_offset_x) || 0;
+  const offsetY = Number(photo?.top7_offset_y) || 14;
+  return {
+    transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
+    transformOrigin: "center",
+  };
+}
+
+function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
+  const image = photo?.image_url ?? candidate.photo_url;
+
   if (image) {
     return (
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full ring-1 ring-(--gold)/40 sm:h-16 sm:w-16">
         <img
           src={image}
           alt={candidate.name}
-          className="h-full w-full translate-y-[14%] scale-[1.8] object-cover object-[center_18%]"
+          className="h-full w-full object-cover"
+          style={top7Transform(photo)}
         />
       </div>
     );
@@ -68,7 +81,7 @@ function TopSevenColumn({
             {candidates.map((candidate: any, index: number) => (
               <Reveal key={candidate.candidate_id} delay={index * 0.04} className="min-w-0">
                 <article className="flex min-w-0 items-center gap-3 rounded-xl border border-(--gold)/20 bg-(--emerald-deep)/45 p-3 transition-colors hover:border-(--gold)/45 sm:gap-4 sm:p-4 md:gap-3 xl:gap-4">
-                  <Avatar candidate={candidate} image={top7ImageFor(candidate, photos)} />
+                  <Avatar candidate={candidate} photo={top7PhotoFor(candidate, photos)} />
                   <div className="min-w-0">
                     <div className="break-words font-display text-base leading-snug text-(--ivory) sm:text-lg xl:text-xl">{candidate.name}</div>
                     <div className="mt-1 break-words text-[9px] uppercase tracking-[0.18em] text-(--ivory)/50 sm:text-[10px] sm:tracking-[0.25em]">

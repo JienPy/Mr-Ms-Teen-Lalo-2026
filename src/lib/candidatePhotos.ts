@@ -6,6 +6,9 @@ export type CandidatePhoto = {
   is_main_portrait?: boolean;
   show_in_profile?: boolean;
   show_in_top7?: boolean;
+  top7_zoom?: number | null;
+  top7_offset_x?: number | null;
+  top7_offset_y?: number | null;
   sort_order?: number | null;
 };
 
@@ -28,7 +31,11 @@ export function top7PhotosFor(candidate: any, photos: CandidatePhoto[] | undefin
   return photosForCandidate(photos, candidate.id ?? candidate.candidate_id).filter((photo) => photo.show_in_top7);
 }
 
+export function top7PhotoFor(candidate: any, photos: CandidatePhoto[] | undefined) {
+  const candidatePhotos = photosForCandidate(photos, candidate.id ?? candidate.candidate_id);
+  return candidatePhotos.find((photo) => photo.show_in_top7) ?? candidatePhotos.find((photo) => photo.is_main_portrait);
+}
+
 export function top7ImageFor(candidate: any, photos: CandidatePhoto[] | undefined) {
-  const top7Photo = top7PhotosFor(candidate, photos)[0]?.image_url;
-  return top7Photo ?? mainPortraitFor(candidate, photos);
+  return top7PhotoFor(candidate, photos)?.image_url ?? candidate.photo_url ?? null;
 }

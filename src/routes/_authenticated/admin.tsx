@@ -532,11 +532,17 @@ function CandidatePhotoLibrary({ candidateId, photos }: { candidateId: string; p
 function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; updatePhoto: any; deletePhoto: any }) {
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [sortOrder, setSortOrder] = useState(String(photo.sort_order ?? 0));
+  const [top7Zoom, setTop7Zoom] = useState(Number(photo.top7_zoom) || 1.8);
+  const [top7OffsetX, setTop7OffsetX] = useState(Number(photo.top7_offset_x) || 0);
+  const [top7OffsetY, setTop7OffsetY] = useState(Number(photo.top7_offset_y) || 14);
 
   useEffect(() => {
     setCaption(photo.caption ?? "");
     setSortOrder(String(photo.sort_order ?? 0));
-  }, [photo.caption, photo.sort_order]);
+    setTop7Zoom(Number(photo.top7_zoom) || 1.8);
+    setTop7OffsetX(Number(photo.top7_offset_x) || 0);
+    setTop7OffsetY(Number(photo.top7_offset_y) || 14);
+  }, [photo.caption, photo.sort_order, photo.top7_zoom, photo.top7_offset_x, photo.top7_offset_y]);
 
   function saveDetails() {
     updatePhoto.mutate({
@@ -547,6 +553,36 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
       },
     });
   }
+
+  function saveTop7Crop() {
+    updatePhoto.mutate({
+      id: photo.id,
+      patch: {
+        top7_zoom: Number(top7Zoom.toFixed(2)),
+        top7_offset_x: Number(top7OffsetX.toFixed(2)),
+        top7_offset_y: Number(top7OffsetY.toFixed(2)),
+      },
+    });
+  }
+
+  function resetTop7Crop() {
+    setTop7Zoom(1.8);
+    setTop7OffsetX(0);
+    setTop7OffsetY(14);
+    updatePhoto.mutate({
+      id: photo.id,
+      patch: {
+        top7_zoom: 1.8,
+        top7_offset_x: 0,
+        top7_offset_y: 14,
+      },
+    });
+  }
+
+  const top7PreviewStyle = {
+    transform: `translate(${top7OffsetX}%, ${top7OffsetY}%) scale(${top7Zoom})`,
+    transformOrigin: "center",
+  };
 
   return (
     <div className="rounded-lg border border-(--gold)/15 p-3">
@@ -594,12 +630,75 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
           Top 7
         </label>
       </div>
+      {photo.show_in_top7 && (
+        <div className="mt-3 rounded-lg border border-(--gold)/15 bg-(--emerald-deep)/40 p-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-(--gold)/35 bg-(--secondary)">
+              <img
+                src={photo.image_url}
+                alt={photo.caption ?? "Top 7 preview"}
+                className="h-full w-full object-cover"
+                style={top7PreviewStyle}
+              />
+            </div>
+            <div className="min-w-[180px] flex-1 space-y-3">
+              <CropSlider label="Zoom" value={top7Zoom} min={1} max={2.6} step={0.05} suffix="x" onChange={setTop7Zoom} />
+              <CropSlider label="Left / Right" value={top7OffsetX} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetX} />
+              <CropSlider label="Up / Down" value={top7OffsetY} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetY} />
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end gap-3">
+            <button onClick={resetTop7Crop} className="text-[10px] uppercase tracking-[0.2em] text-(--ivory)/55 hover:text-(--ivory)">
+              Reset
+            </button>
+            <button onClick={saveTop7Crop} className="text-[10px] uppercase tracking-[0.2em] text-(--gold-soft) hover:text-(--gold)">
+              Save Crop
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex justify-end">
         <button onClick={() => confirm("Delete this candidate photo?") && deletePhoto.mutate(photo.id)} className="text-[10px] uppercase tracking-[0.2em] text-(--destructive)">
           Delete
         </button>
       </div>
     </div>
+  );
+}
+
+function CropSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  suffix: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-1 flex items-center justify-between gap-3 text-[9px] uppercase tracking-[0.18em] text-(--gold-soft)/75">
+        <span>{label}</span>
+        <span className="text-(--ivory)/50">{Number(value.toFixed(2))}{suffix}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-(--gold)"
+      />
+    </label>
   );
 }
 
