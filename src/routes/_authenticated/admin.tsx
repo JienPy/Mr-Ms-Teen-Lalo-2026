@@ -642,9 +642,9 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
               />
             </div>
             <div className="min-w-[180px] flex-1 space-y-3">
-              <CropSlider label="Zoom" value={top7Zoom} min={1} max={2.6} step={0.05} suffix="x" onChange={setTop7Zoom} />
-              <CropSlider label="Left / Right" value={top7OffsetX} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetX} />
-              <CropSlider label="Up / Down" value={top7OffsetY} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetY} />
+              <CropSlider label="Zoom" value={top7Zoom} min={0.8} max={2.8} step={0.05} suffix="x" onChange={setTop7Zoom} />
+              <CropSlider label="Left / Right" value={top7OffsetX} min={-60} max={60} step={1} suffix="%" onChange={setTop7OffsetX} />
+              <CropSlider label="Up / Down" value={top7OffsetY} min={-60} max={80} step={1} suffix="%" onChange={setTop7OffsetY} />
             </div>
           </div>
           <div className="mt-3 flex justify-end gap-3">
