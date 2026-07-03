@@ -47,7 +47,7 @@ function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
           key={cropKey}
           src={image}
           alt={candidate.name}
-          className="h-full w-full object-contain"
+          className="h-full w-full object-cover"
           style={top7Transform(photo)}
         />
       </div>
