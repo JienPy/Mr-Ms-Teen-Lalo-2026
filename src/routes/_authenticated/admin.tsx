@@ -532,16 +532,16 @@ function CandidatePhotoLibrary({ candidateId, photos }: { candidateId: string; p
 function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; updatePhoto: any; deletePhoto: any }) {
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [sortOrder, setSortOrder] = useState(String(photo.sort_order ?? 0));
-  const [top7Zoom, setTop7Zoom] = useState(Number(photo.top7_zoom) || 1.8);
+  const [top7Zoom, setTop7Zoom] = useState(Number(photo.top7_zoom) || 1);
   const [top7OffsetX, setTop7OffsetX] = useState(Number(photo.top7_offset_x) || 0);
-  const [top7OffsetY, setTop7OffsetY] = useState(Number(photo.top7_offset_y) || 14);
+  const [top7OffsetY, setTop7OffsetY] = useState(Number(photo.top7_offset_y) || 0);
 
   useEffect(() => {
     setCaption(photo.caption ?? "");
     setSortOrder(String(photo.sort_order ?? 0));
-    setTop7Zoom(Number(photo.top7_zoom) || 1.8);
+    setTop7Zoom(Number(photo.top7_zoom) || 1);
     setTop7OffsetX(Number(photo.top7_offset_x) || 0);
-    setTop7OffsetY(Number(photo.top7_offset_y) || 14);
+    setTop7OffsetY(Number(photo.top7_offset_y) || 0);
   }, [photo.caption, photo.sort_order, photo.top7_zoom, photo.top7_offset_x, photo.top7_offset_y]);
 
   function saveDetails() {
@@ -566,15 +566,15 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
   }
 
   function resetTop7Crop() {
-    setTop7Zoom(1.8);
+    setTop7Zoom(1);
     setTop7OffsetX(0);
-    setTop7OffsetY(14);
+    setTop7OffsetY(0);
     updatePhoto.mutate({
       id: photo.id,
       patch: {
-        top7_zoom: 1.8,
+        top7_zoom: 1,
         top7_offset_x: 0,
-        top7_offset_y: 14,
+        top7_offset_y: 0,
       },
     });
   }

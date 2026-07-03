@@ -25,9 +25,9 @@ function displayTopSeven(data: any[], division: "mr" | "ms") {
 }
 
 function top7Transform(photo?: any) {
-  const zoom = Number(photo?.top7_zoom) || 1.8;
+  const zoom = Number(photo?.top7_zoom) || 1;
   const offsetX = Number(photo?.top7_offset_x) || 0;
-  const offsetY = Number(photo?.top7_offset_y) || 14;
+  const offsetY = Number(photo?.top7_offset_y) || 0;
   return {
     transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
     transformOrigin: "center",
