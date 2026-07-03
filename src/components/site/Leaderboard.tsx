@@ -39,11 +39,11 @@ function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
 
   if (image) {
     return (
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full ring-1 ring-(--gold)/40 sm:h-16 sm:w-16">
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-(--emerald-deep)/70 ring-1 ring-(--gold)/40 sm:h-16 sm:w-16">
         <img
           src={image}
           alt={candidate.name}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           style={top7Transform(photo)}
         />
       </div>

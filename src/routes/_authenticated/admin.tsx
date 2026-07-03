@@ -587,7 +587,11 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
   return (
     <div className="rounded-lg border border-(--gold)/15 p-3">
       <div className="flex gap-3">
-        <img src={photo.image_url} alt={photo.caption ?? ""} className="w-24 h-28 rounded-md object-cover border border-(--gold)/20" />
+        <img
+          src={photo.image_url}
+          alt={photo.caption ?? ""}
+          className="w-24 h-28 rounded-md border border-(--gold)/20 bg-(--emerald-deep)/60 object-contain"
+        />
         <div className="min-w-0 flex-1 space-y-2">
           <TextField
             label="Caption"
@@ -637,7 +641,7 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
               <img
                 src={photo.image_url}
                 alt={photo.caption ?? "Top 7 preview"}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 style={top7PreviewStyle}
               />
             </div>
