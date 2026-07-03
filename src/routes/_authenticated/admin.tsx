@@ -346,7 +346,14 @@ function CandidatesAdmin() {
       qc.invalidateQueries({ queryKey: ["leaderboard"] });
       setEditing(null); setIsNew(false);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      const message = String(e.message ?? "");
+      if (message.includes("top7_offset") || message.includes("top7_zoom")) {
+        toast.error("Database update needed: run the Top 7 crop SQL in Supabase first.");
+        return;
+      }
+      toast.error(message);
+    },
   });
 
   const del = useMutation({
@@ -530,18 +537,19 @@ function CandidatePhotoLibrary({ candidateId, photos }: { candidateId: string; p
 }
 
 function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; updatePhoto: any; deletePhoto: any }) {
+  const clampCropOffset = (value: number) => Math.max(-35, Math.min(35, value));
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [sortOrder, setSortOrder] = useState(String(photo.sort_order ?? 0));
   const [top7Zoom, setTop7Zoom] = useState(Number(photo.top7_zoom) || 1);
-  const [top7OffsetX, setTop7OffsetX] = useState(Number(photo.top7_offset_x) || 0);
-  const [top7OffsetY, setTop7OffsetY] = useState(Number(photo.top7_offset_y) || 0);
+  const [top7OffsetX, setTop7OffsetX] = useState(clampCropOffset(Number(photo.top7_offset_x) || 0));
+  const [top7OffsetY, setTop7OffsetY] = useState(clampCropOffset(Number(photo.top7_offset_y) || 0));
 
   useEffect(() => {
     setCaption(photo.caption ?? "");
     setSortOrder(String(photo.sort_order ?? 0));
     setTop7Zoom(Number(photo.top7_zoom) || 1);
-    setTop7OffsetX(Number(photo.top7_offset_x) || 0);
-    setTop7OffsetY(Number(photo.top7_offset_y) || 0);
+    setTop7OffsetX(clampCropOffset(Number(photo.top7_offset_x) || 0));
+    setTop7OffsetY(clampCropOffset(Number(photo.top7_offset_y) || 0));
   }, [photo.caption, photo.sort_order, photo.top7_zoom, photo.top7_offset_x, photo.top7_offset_y]);
 
   function saveDetails() {
@@ -559,8 +567,8 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
       id: photo.id,
       patch: {
         top7_zoom: Number(top7Zoom.toFixed(2)),
-        top7_offset_x: Number(top7OffsetX.toFixed(2)),
-        top7_offset_y: Number(top7OffsetY.toFixed(2)),
+        top7_offset_x: Number(clampCropOffset(top7OffsetX).toFixed(2)),
+        top7_offset_y: Number(clampCropOffset(top7OffsetY).toFixed(2)),
       },
     });
   }
@@ -646,9 +654,9 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
               />
             </div>
             <div className="min-w-[180px] flex-1 space-y-3">
-              <CropSlider label="Zoom" value={top7Zoom} min={0.8} max={2.8} step={0.05} suffix="x" onChange={setTop7Zoom} />
-              <CropSlider label="Left / Right" value={top7OffsetX} min={-60} max={60} step={1} suffix="%" onChange={setTop7OffsetX} />
-              <CropSlider label="Up / Down" value={top7OffsetY} min={-60} max={80} step={1} suffix="%" onChange={setTop7OffsetY} />
+              <CropSlider label="Zoom" value={top7Zoom} min={0.7} max={3} step={0.05} suffix="x" onChange={setTop7Zoom} />
+              <CropSlider label="Left / Right" value={top7OffsetX} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetX} />
+              <CropSlider label="Up / Down" value={top7OffsetY} min={-35} max={35} step={1} suffix="%" onChange={setTop7OffsetY} />
             </div>
           </div>
           <div className="mt-3 flex justify-end gap-3">
