@@ -66,7 +66,8 @@ export const candidatesQuery = queryOptions({
 
 export const candidatePhotosQuery = queryOptions({
   queryKey: ["candidate-photos"],
-  refetchInterval: 15_000,
+  staleTime: 60_000,
+  refetchInterval: 60_000,
   refetchOnWindowFocus: true,
   queryFn: async () => {
     const { data, error } = await (supabase.from("candidate_photos") as any)

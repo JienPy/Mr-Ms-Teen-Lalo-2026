@@ -63,6 +63,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
+      { rel: "preconnect", href: "https://yswxzqnmzqxegohaaptq.supabase.co" },
+      { rel: "dns-prefetch", href: "https://yswxzqnmzqxegohaaptq.supabase.co" },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "stylesheet", href: appCss },

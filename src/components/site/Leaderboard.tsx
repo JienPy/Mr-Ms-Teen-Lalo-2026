@@ -48,6 +48,11 @@ function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
           key={cropKey}
           src={image}
           alt={candidate.name}
+          width={64}
+          height={64}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className="h-full w-full object-cover"
           style={useGeneratedCrop ? undefined : top7Transform(photo)}
         />
