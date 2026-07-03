@@ -493,7 +493,14 @@ function CandidatePhotoLibrary({ candidateId, photos }: { candidateId: string; p
       toast.success("Photo updated.");
       refresh();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      const message = String(e.message ?? "");
+      if (message.includes("top7_offset") || message.includes("top7_zoom")) {
+        toast.error("Database update needed: run the Top 7 crop SQL in Supabase first.");
+        return;
+      }
+      toast.error(message);
+    },
   });
 
   const deletePhoto = useMutation({
