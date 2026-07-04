@@ -11,15 +11,15 @@ function TicketWatermark() {
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[50] overflow-hidden" aria-hidden="true">
-      <div className="absolute inset-0 bg-black/20" />
+      <div className="absolute inset-0 bg-black/8" />
       <div className="absolute inset-[-38%] grid grid-cols-4 gap-x-4 gap-y-7 -rotate-12">
         {marks.map((_, index) => (
           <div
             key={index}
             className="whitespace-nowrap text-center font-black uppercase tracking-[0.22em] text-[clamp(0.56rem,1.35vw,1rem)]"
             style={{
-              color: "rgba(255,255,255,0.62)",
-              textShadow: "0 2px 3px rgba(0,0,0,0.95), 0 0 12px rgba(201,162,75,0.45)",
+              color: "rgba(255,255,255,0.32)",
+              textShadow: "0 1px 2px rgba(0,0,0,0.65), 0 0 8px rgba(201,162,75,0.25)",
             }}
           >
             Preview Only
