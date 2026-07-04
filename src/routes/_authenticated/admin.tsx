@@ -198,31 +198,34 @@ async function loadImageForCanvas(imageUrl: string) {
 async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: number, offsetY: number) {
   const { image, cleanup } = await loadImageForCanvas(imageUrl);
 
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not prepare crop image.");
+  try {
+    const size = 512;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not prepare crop image.");
 
-  const imageRatio = image.naturalWidth / image.naturalHeight;
-  const drawWidth = imageRatio > 1 ? size : size * imageRatio;
-  const drawHeight = imageRatio > 1 ? size / imageRatio : size;
+    const imageRatio = image.naturalWidth / image.naturalHeight;
+    const drawWidth = imageRatio > 1 ? size : size * imageRatio;
+    const drawHeight = imageRatio > 1 ? size / imageRatio : size;
 
-  ctx.fillStyle = "#002d1b";
-  ctx.fillRect(0, 0, size, size);
-  ctx.translate(size / 2 + (offsetX / 100) * size, size / 2 + (offsetY / 100) * size);
-  ctx.scale(zoom, zoom);
-  ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.fillStyle = "#002d1b";
+    ctx.fillRect(0, 0, size, size);
+    ctx.translate(size / 2 + (offsetX / 100) * size, size / 2 + (offsetY / 100) * size);
+    ctx.scale(zoom, zoom);
+    ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((result) => {
-      cleanup();
-      return result ? resolve(result) : reject(new Error("Could not export crop image."));
-    }, "image/jpeg", 0.9);
-  });
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((result) => {
+        return result ? resolve(result) : reject(new Error("Could not export crop image."));
+      }, "image/jpeg", 0.9);
+    });
 
-  return new File([blob], `top7-crop-${crypto.randomUUID()}.jpg`, { type: "image/jpeg" });
+    return new File([blob], `top7-crop-${crypto.randomUUID()}.jpg`, { type: "image/jpeg" });
+  } finally {
+    cleanup();
+  }
 }
 
 function Panel({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
@@ -638,15 +641,36 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
       const zoom = Number(clampCropZoom(top7Zoom).toFixed(2));
       const offsetX = Number(clampCropOffset(top7OffsetX).toFixed(2));
       const offsetY = Number(clampCropOffset(top7OffsetY).toFixed(2));
-      const cropFile = await createTop7CropFile(photo.image_url, zoom, offsetX, offsetY);
-      const cropUrl = await uploadToStorage(cropFile, `candidates/${photo.candidate_id}/top7-crops`);
+      let cropUrl: string | null = null;
+
+      try {
+        const cropFile = await createTop7CropFile(photo.image_url, zoom, offsetX, offsetY);
+        cropUrl = await uploadToStorage(cropFile, `candidates/${photo.candidate_id}/top7-crops`);
+      } catch (cropError: any) {
+        toast.warning(cropError.message ?? "Crop position will be saved without a generated avatar.");
+      }
+
+      if (cropUrl) {
+        const { error: cropUrlError } = await (supabase.from("candidate_photos") as any)
+          .update({ top7_crop_url: cropUrl })
+          .eq("id", photo.id);
+
+        if (cropUrlError) {
+          const message = String(cropUrlError.message ?? "");
+          if (message.includes("top7_crop_url")) {
+            toast.warning("Crop position saved. Run the Top 7 crop URL SQL to enable faster cropped avatars.");
+          } else {
+            throw cropUrlError;
+          }
+        }
+      }
+
       updatePhoto.mutate({
         id: photo.id,
         patch: {
           top7_zoom: zoom,
           top7_offset_x: offsetX,
           top7_offset_y: offsetY,
-          top7_crop_url: cropUrl,
         },
       });
     } catch (e: any) {
@@ -666,9 +690,11 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
         top7_zoom: 1,
         top7_offset_x: 0,
         top7_offset_y: 0,
-        top7_crop_url: null,
       },
     });
+    void (supabase.from("candidate_photos") as any)
+      .update({ top7_crop_url: null })
+      .eq("id", photo.id);
   }
 
   const top7PreviewStyle = {
