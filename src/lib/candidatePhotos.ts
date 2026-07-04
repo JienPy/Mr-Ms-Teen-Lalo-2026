@@ -38,5 +38,6 @@ export function top7PhotoFor(candidate: any, photos: CandidatePhoto[] | undefine
 }
 
 export function top7ImageFor(candidate: any, photos: CandidatePhoto[] | undefined) {
-  return top7PhotoFor(candidate, photos)?.image_url ?? candidate.photo_url ?? null;
+  const photo = top7PhotoFor(candidate, photos);
+  return photo?.top7_crop_url ?? photo?.image_url ?? candidate.photo_url ?? null;
 }

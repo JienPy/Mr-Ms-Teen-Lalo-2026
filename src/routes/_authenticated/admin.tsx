@@ -210,19 +210,23 @@ async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: numbe
     const drawWidth = imageRatio > 1 ? size : size * imageRatio;
     const drawHeight = imageRatio > 1 ? size / imageRatio : size;
 
-    ctx.fillStyle = "#002d1b";
-    ctx.fillRect(0, 0, size, size);
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.clip();
     ctx.translate(size / 2 + (offsetX / 100) * size, size / 2 + (offsetY / 100) * size);
     ctx.scale(zoom, zoom);
     ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.restore();
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((result) => {
         return result ? resolve(result) : reject(new Error("Could not export crop image."));
-      }, "image/jpeg", 0.9);
+      }, "image/png");
     });
 
-    return new File([blob], `top7-crop-${crypto.randomUUID()}.jpg`, { type: "image/jpeg" });
+    return new File([blob], `top7-crop-${crypto.randomUUID()}.png`, { type: "image/png" });
   } finally {
     cleanup();
   }
@@ -641,17 +645,26 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
       const zoom = Number(clampCropZoom(top7Zoom).toFixed(2));
       const offsetX = Number(clampCropOffset(top7OffsetX).toFixed(2));
       const offsetY = Number(clampCropOffset(top7OffsetY).toFixed(2));
+      const cropFile = await createTop7CropFile(photo.image_url, zoom, offsetX, offsetY);
+      const top7CropUrl = await uploadToStorage(cropFile, `candidates/${photo.candidate_id}/top7-crops`);
 
-      updatePhoto.mutate({
+      await updatePhoto.mutateAsync({
         id: photo.id,
         patch: {
+          top7_crop_url: top7CropUrl,
           top7_zoom: zoom,
           top7_offset_x: offsetX,
           top7_offset_y: offsetY,
         },
       });
+      toast.success("Top 7 avatar snapshot saved.");
     } catch (e: any) {
-      toast.error(e.message ?? "Could not save Top 7 crop.");
+      const message = String(e.message ?? "");
+      if (message.includes("top7_crop_url")) {
+        toast.error("Database update needed: run the Top 7 crop URL SQL in Supabase first.");
+      } else {
+        toast.error(message || "Could not save Top 7 crop.");
+      }
     } finally {
       setSavingCrop(false);
     }
