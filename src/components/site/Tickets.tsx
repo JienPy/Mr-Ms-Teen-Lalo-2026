@@ -22,15 +22,9 @@ function TicketWatermark() {
               textShadow: "0 2px 3px rgba(0,0,0,0.95), 0 0 12px rgba(201,162,75,0.45)",
             }}
           >
-            No Copy · Preview Only
+            Preview Only
           </div>
         ))}
-      </div>
-      <div
-        className="absolute left-1/2 top-1/2 w-[72%] -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-full border-2 border-white/65 bg-black/45 px-4 py-3 text-center text-[clamp(0.75rem,2.1vw,1.65rem)] font-black uppercase tracking-[0.26em] text-white shadow-[0_0_30px_rgba(0,0,0,0.75)] backdrop-blur-[1px]"
-        style={{ textShadow: "0 2px 4px rgba(0,0,0,0.95)" }}
-      >
-        No Copy · Sample Only
       </div>
       <div className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-full border border-(--gold)/80 bg-black/75 px-4 py-1.5 text-[9px] font-bold uppercase tracking-[0.24em] text-(--gold-soft) shadow-lg backdrop-blur-sm sm:bottom-5 sm:text-[10px]">
         Watermarked Preview · Not Valid for Entry
