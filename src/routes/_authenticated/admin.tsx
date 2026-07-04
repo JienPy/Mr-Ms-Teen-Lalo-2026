@@ -165,12 +165,38 @@ async function uploadToStorage(file: File, folder: string): Promise<string> {
   return data.publicUrl;
 }
 
-async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: number, offsetY: number) {
+async function loadImageForCanvas(imageUrl: string) {
+  let objectUrl: string | null = null;
+  try {
+    const response = await fetch(imageUrl, { cache: "no-store", mode: "cors" });
+    if (response.ok) {
+      const blob = await response.blob();
+      objectUrl = URL.createObjectURL(blob);
+    }
+  } catch {
+    objectUrl = null;
+  }
+
   const image = new Image();
   image.crossOrigin = "anonymous";
   image.decoding = "async";
-  image.src = imageUrl;
-  await image.decode();
+
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("The source image cannot be loaded for cropping."));
+    image.src = objectUrl ?? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}crop=${Date.now()}`;
+  });
+
+  return {
+    image,
+    cleanup: () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    },
+  };
+}
+
+async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: number, offsetY: number) {
+  const { image, cleanup } = await loadImageForCanvas(imageUrl);
 
   const size = 512;
   const canvas = document.createElement("canvas");
@@ -190,7 +216,10 @@ async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: numbe
   ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((result) => (result ? resolve(result) : reject(new Error("Could not export crop image."))), "image/jpeg", 0.9);
+    canvas.toBlob((result) => {
+      cleanup();
+      return result ? resolve(result) : reject(new Error("Could not export crop image."));
+    }, "image/jpeg", 0.9);
   });
 
   return new File([blob], `top7-crop-${crypto.randomUUID()}.jpg`, { type: "image/jpeg" });
