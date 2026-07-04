@@ -6,6 +6,39 @@ import { Reveal } from "@/components/luxury/Reveal";
 import { candidatesQuery } from "@/lib/queries";
 import officialTicket from "@/assets/ticket-regular.png";
 
+function TicketWatermark() {
+  const marks = Array.from({ length: 36 });
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[50] overflow-hidden" aria-hidden="true">
+      <div className="absolute inset-0 bg-black/20" />
+      <div className="absolute inset-[-38%] grid grid-cols-4 gap-x-4 gap-y-7 -rotate-12">
+        {marks.map((_, index) => (
+          <div
+            key={index}
+            className="whitespace-nowrap text-center font-black uppercase tracking-[0.22em] text-[clamp(0.56rem,1.35vw,1rem)]"
+            style={{
+              color: "rgba(255,255,255,0.62)",
+              textShadow: "0 2px 3px rgba(0,0,0,0.95), 0 0 12px rgba(201,162,75,0.45)",
+            }}
+          >
+            No Copy · Preview Only
+          </div>
+        ))}
+      </div>
+      <div
+        className="absolute left-1/2 top-1/2 w-[72%] -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-full border-2 border-white/65 bg-black/45 px-4 py-3 text-center text-[clamp(0.75rem,2.1vw,1.65rem)] font-black uppercase tracking-[0.26em] text-white shadow-[0_0_30px_rgba(0,0,0,0.75)] backdrop-blur-[1px]"
+        style={{ textShadow: "0 2px 4px rgba(0,0,0,0.95)" }}
+      >
+        No Copy · Sample Only
+      </div>
+      <div className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-full border border-(--gold)/80 bg-black/75 px-4 py-1.5 text-[9px] font-bold uppercase tracking-[0.24em] text-(--gold-soft) shadow-lg backdrop-blur-sm sm:bottom-5 sm:text-[10px]">
+        Watermarked Preview · Not Valid for Entry
+      </div>
+    </div>
+  );
+}
+
 function ContactRow({ person, label }: { person: any; label: string }) {
   return (
     <div className="rounded-xl border border-(--gold)/15 bg-(--emerald-deep)/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -49,13 +82,24 @@ export function Tickets({
           <motion.button
             type="button"
             onClick={() => setOpen(true)}
+            onContextMenu={(event) => event.preventDefault()}
+            onCopy={(event) => event.preventDefault()}
+            onCut={(event) => event.preventDefault()}
+            onDragStart={(event) => event.preventDefault()}
             whileHover={{ rotateY: 8, rotateX: -4, scale: 1.02 }}
             transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="relative mx-auto w-full max-w-4xl aspect-[2048/899] rounded-xl ornate-border overflow-hidden glass-emerald shadow-[0_35px_100px_-40px_rgba(201,162,75,0.7)]"
-            style={{ transformStyle: "preserve-3d", perspective: 1000 }}
+            className="relative mx-auto w-full max-w-4xl aspect-[2048/899] select-none rounded-xl ornate-border overflow-hidden glass-emerald shadow-[0_35px_100px_-40px_rgba(201,162,75,0.7)]"
+            style={{ transformStyle: "preserve-3d", perspective: 1000, WebkitUserSelect: "none" }}
             aria-label="View ticket sellers"
           >
-            <img src={displayTicket} alt="Official ticket" className="w-full h-full object-cover" />
+            <img
+              src={displayTicket}
+              alt="Official ticket"
+              draggable={false}
+              className="pointer-events-none h-full w-full select-none object-cover"
+              style={{ WebkitUserDrag: "none", WebkitTouchCallout: "none" }}
+            />
+            <TicketWatermark />
           </motion.button>
         </Reveal>
 
