@@ -43,17 +43,17 @@ function Avatar({ candidate, photo }: { candidate: any; photo?: any | null }) {
 
   if (image) {
     return (
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-(--emerald-deep)/70 ring-1 ring-(--gold)/40 sm:h-16 sm:w-16">
+      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-(--emerald-deep)/70 ring-1 ring-(--gold)/40 sm:h-20 sm:w-20">
         <img
           key={cropKey}
           src={image}
           alt={candidate.name}
-          width={64}
-          height={64}
+          width={80}
+          height={80}
           loading="eager"
           decoding="async"
           fetchPriority="high"
-          className={`h-full w-full ${snapshot ? "object-cover" : "object-contain"}`}
+          className="h-full w-full object-cover"
           style={snapshot ? undefined : top7Transform(photo)}
         />
       </div>

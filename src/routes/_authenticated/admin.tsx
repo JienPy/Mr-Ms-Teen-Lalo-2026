@@ -207,8 +207,8 @@ async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: numbe
     if (!ctx) throw new Error("Could not prepare crop image.");
 
     const imageRatio = image.naturalWidth / image.naturalHeight;
-    const drawWidth = imageRatio > 1 ? size : size * imageRatio;
-    const drawHeight = imageRatio > 1 ? size / imageRatio : size;
+    const drawWidth = imageRatio > 1 ? size * imageRatio : size;
+    const drawHeight = imageRatio > 1 ? size : size / imageRatio;
 
     ctx.clearRect(0, 0, size, size);
     ctx.save();
@@ -612,7 +612,7 @@ function CandidatePhotoLibrary({ candidateId, photos }: { candidateId: string; p
 
 function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; updatePhoto: any; deletePhoto: any }) {
   const clampCropOffset = (value: number) => Math.max(-35, Math.min(35, value));
-  const clampCropZoom = (value: number) => Math.max(0.7, Math.min(3, value));
+  const clampCropZoom = (value: number) => Math.max(1, Math.min(5, value));
   const dragStartRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [sortOrder, setSortOrder] = useState(String(photo.sort_order ?? 0));
@@ -788,12 +788,12 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
                 src={photo.image_url}
                 alt={photo.caption ?? "Top 7 preview"}
                 draggable={false}
-                className="pointer-events-none h-full w-full object-contain"
+                className="pointer-events-none h-full w-full object-cover"
                 style={top7PreviewStyle}
               />
             </div>
             <div className="min-w-[180px] flex-1 space-y-3">
-              <CropSlider label="Zoom" value={top7Zoom} min={0.7} max={3} step={0.05} suffix="x" onChange={setTop7Zoom} />
+              <CropSlider label="Zoom" value={top7Zoom} min={1} max={5} step={0.05} suffix="x" onChange={setTop7Zoom} />
             </div>
           </div>
           <div className="mt-3 flex justify-end gap-3">
