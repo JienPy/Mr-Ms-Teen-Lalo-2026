@@ -206,9 +206,16 @@ async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: numbe
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Could not prepare crop image.");
 
+    const baseCanvas = document.createElement("canvas");
+    baseCanvas.width = size;
+    baseCanvas.height = size;
+    const baseCtx = baseCanvas.getContext("2d");
+    if (!baseCtx) throw new Error("Could not prepare crop preview.");
+
     const imageRatio = image.naturalWidth / image.naturalHeight;
     const drawWidth = imageRatio > 1 ? size * imageRatio : size;
     const drawHeight = imageRatio > 1 ? size : size / imageRatio;
+    baseCtx.drawImage(image, (size - drawWidth) / 2, (size - drawHeight) / 2, drawWidth, drawHeight);
 
     ctx.clearRect(0, 0, size, size);
     ctx.save();
@@ -217,7 +224,7 @@ async function createTop7CropFile(imageUrl: string, zoom: number, offsetX: numbe
     ctx.clip();
     ctx.translate(size / 2 + (offsetX / 100) * size, size / 2 + (offsetY / 100) * size);
     ctx.scale(zoom, zoom);
-    ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.drawImage(baseCanvas, -size / 2, -size / 2, size, size);
     ctx.restore();
 
     const blob = await new Promise<Blob>((resolve, reject) => {
