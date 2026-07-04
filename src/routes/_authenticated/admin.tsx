@@ -641,29 +641,6 @@ function CandidatePhotoCard({ photo, updatePhoto, deletePhoto }: { photo: any; u
       const zoom = Number(clampCropZoom(top7Zoom).toFixed(2));
       const offsetX = Number(clampCropOffset(top7OffsetX).toFixed(2));
       const offsetY = Number(clampCropOffset(top7OffsetY).toFixed(2));
-      let cropUrl: string | null = null;
-
-      try {
-        const cropFile = await createTop7CropFile(photo.image_url, zoom, offsetX, offsetY);
-        cropUrl = await uploadToStorage(cropFile, `candidates/${photo.candidate_id}/top7-crops`);
-      } catch (cropError: any) {
-        toast.warning(cropError.message ?? "Crop position will be saved without a generated avatar.");
-      }
-
-      if (cropUrl) {
-        const { error: cropUrlError } = await (supabase.from("candidate_photos") as any)
-          .update({ top7_crop_url: cropUrl })
-          .eq("id", photo.id);
-
-        if (cropUrlError) {
-          const message = String(cropUrlError.message ?? "");
-          if (message.includes("top7_crop_url")) {
-            toast.warning("Crop position saved. Run the Top 7 crop URL SQL to enable faster cropped avatars.");
-          } else {
-            throw cropUrlError;
-          }
-        }
-      }
 
       updatePhoto.mutate({
         id: photo.id,
