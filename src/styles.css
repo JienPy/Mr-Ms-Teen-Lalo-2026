@@ -253,6 +253,14 @@
   opacity: 1;
 }
 
+.candidate-card__photo-frame {
+  display: block;
+}
+
+.candidate-card__photo {
+  object-position: 50% 20%;
+}
+
 .candidate-card__shine {
   position: absolute;
   inset: 0;

@@ -54,10 +54,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Mr. & Ms. Teen Lalo 2026 — SK Barangay Lalo" },
+      { title: "Mister & Miss Teen Lalo 2026 — SK Barangay Lalo" },
       { name: "description", content: "Beyond Beauty and Confidence: Empowering the Youth of Barangay Lalo. The official pageant of the Sangguniang Kabataan, Barangay Lalo, City of Tayabas. August 30, 2026 at Silungang Bayan." },
       { name: "author", content: "Sangguniang Kabataan – Barangay Lalo" },
-      { property: "og:title", content: "Mr. & Ms. Teen Lalo 2026" },
+      { property: "og:title", content: "Mister & Miss Teen Lalo 2026" },
       { property: "og:description", content: "Beyond Beauty and Confidence: Empowering the Youth of Barangay Lalo. August 30, 2026 · Silungang Bayan." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

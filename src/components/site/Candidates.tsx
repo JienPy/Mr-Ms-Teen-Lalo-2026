@@ -107,13 +107,12 @@ export function Candidates() {
                         setPreviewPhoto(null);
                         setOpen(c);
                       }}
-                      whileHover={{ y: -8 }}
                       whileTap={{ scale: 0.985 }}
                       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                       className="candidate-card group block w-full text-left glass-emerald rounded-xl overflow-hidden ornate-border focus:outline-none focus-visible:ring-2 focus-visible:ring-(--gold)"
                     >
                       <div className="candidate-card__halo" />
-                      <div className="relative m-3 aspect-[3/4] overflow-hidden rounded-lg border border-(--gold)/35 bg-(--emerald-deep)">
+                      <div className="candidate-card__photo-frame relative m-3 aspect-[3/4] overflow-hidden rounded-lg border border-(--gold)/35 bg-(--emerald-deep)">
                         <div className="candidate-card__corner candidate-card__corner--tl" />
                         <div className="candidate-card__corner candidate-card__corner--br" />
                         <div className="candidate-card__spark candidate-card__spark--one" />
@@ -122,7 +121,7 @@ export function Candidates() {
                           <motion.img
                             src={portrait}
                             alt={c.name}
-                            className="w-full h-full object-cover object-[center_28%]"
+                            className="candidate-card__photo w-full h-full object-cover"
                             variants={portraitVariants}
                           />
                         ) : (

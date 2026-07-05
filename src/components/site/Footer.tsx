@@ -29,7 +29,7 @@ export function Footer({
           <img src={skLogo} alt="SK Barangay Lalo" className="h-16 w-16 rounded-full ring-1 ring-(--gold)/40" />
         </div>
         <div>
-          <div className="font-display text-xl text-gold-gradient">Mr. & Ms. Teen Lalo 2026</div>
+          <div className="font-display text-xl text-gold-gradient">Mister & Miss Teen Lalo 2026</div>
           <p className="mt-2 text-xs uppercase tracking-[0.3em] text-(--gold-soft)/70">
             Presented by Sangguniang Kabataan
           </p>

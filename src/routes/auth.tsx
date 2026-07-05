@@ -12,7 +12,7 @@ export const Route = createFileRoute("/auth")({
     const { data } = await supabase.auth.getSession();
     if (data.session) throw redirect({ to: "/admin", replace: true });
   },
-  head: () => ({ meta: [{ title: "Admin Login — Mr. & Ms. Teen Lalo 2026" }] }),
+  head: () => ({ meta: [{ title: "Admin Login — Mister & Miss Teen Lalo 2026" }] }),
   component: AuthPage,
 });
 

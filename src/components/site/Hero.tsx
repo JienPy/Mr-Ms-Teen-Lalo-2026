@@ -24,7 +24,7 @@ export function Hero({ targetIso, venue, time }: { targetIso: string; venue: str
         >
           <img
             src={coupleEmblem}
-            alt="Mr. & Ms. Teen Lalo 2026 emblem"
+            alt="Mister & Miss Teen Lalo 2026 emblem"
             width={1024}
             height={1024}
             className="w-full h-auto drop-shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
@@ -50,7 +50,7 @@ export function Hero({ targetIso, venue, time }: { targetIso: string; venue: str
           }}
         >
           <span className="relative inline-block">
-            Mr. <span className="opacity-80">&amp;</span> Ms.
+            Mister <span className="opacity-80">&amp;</span> Miss
             <span className="block">Teen Lalo 2026</span>
             <span className="pointer-events-none absolute inset-0 animate-shimmer-sweep mix-blend-overlay" aria-hidden />
           </span>

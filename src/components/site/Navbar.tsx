@@ -54,7 +54,7 @@ export function Navbar({ hiddenIds = [] }: { hiddenIds?: string[] }) {
           <img src={skLogo} alt="SK Barangay Lalo" className="hidden min-[380px]:block h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-full ring-1 ring-(--gold)/50" />
           <div className="min-w-0 leading-tight">
             <div className="truncate text-[9px] min-[380px]:text-[10px] uppercase tracking-[0.24em] min-[380px]:tracking-[0.32em] text-(--gold-soft)/80">SK Barangay Lalo</div>
-            <div className="font-display text-xs sm:text-sm text-gold-gradient truncate">Mr. & Ms. Teen Lalo 2026</div>
+            <div className="font-display text-xs sm:text-sm text-gold-gradient truncate">Mister & Miss Teen Lalo 2026</div>
           </div>
         </a>
         <nav className="hidden lg:flex items-center gap-7">

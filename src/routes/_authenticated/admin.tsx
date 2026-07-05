@@ -12,7 +12,7 @@ import {
 import { LogOut, Plus, Trash2, Edit3, Image as ImageIcon, X, Pin, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Admin Dashboard — Mr. & Ms. Teen Lalo 2026" }] }),
+  head: () => ({ meta: [{ title: "Admin Dashboard — Mister & Miss Teen Lalo 2026" }] }),
   component: AdminDashboard,
 });
 
@@ -117,7 +117,7 @@ function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
           <div>
             <div className="text-[10px] uppercase tracking-[0.3em] text-(--gold-soft)/70">Admin Dashboard</div>
-            <div className="font-display text-lg text-gold-gradient">Mr. & Ms. Teen Lalo 2026</div>
+            <div className="font-display text-lg text-gold-gradient">Mister & Miss Teen Lalo 2026</div>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/" className="text-xs uppercase tracking-[0.25em] text-(--ivory)/70 hover:text-(--gold-soft)">View Site</Link>
