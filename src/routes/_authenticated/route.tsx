@@ -10,7 +10,7 @@ async function verifyAuthorizedSession() {
     .from("user_roles")
     .select("role")
     .eq("user_id", data.user.id)
-    .in("role", ["admin", "chairman"]) as any);
+    .in("role", ["admin", "chairman", "content_admin"]) as any);
 
   return !!roles?.length;
 }

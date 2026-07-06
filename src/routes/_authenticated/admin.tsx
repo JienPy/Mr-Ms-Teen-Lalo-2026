@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import {
   candidatesQuery, announcementsQuery, albumsQuery, videosQuery, sponsorsQuery, settingsQuery, pageantPeopleQuery, DEFAULT_PAGEANT_PEOPLE, DEFAULT_SPONSORS, withDefaultPageantPeople, withDefaultSponsors,
 } from "@/lib/queries";
+import { canAccessDashboardTab, dashboardTabsForRole, type DashboardRole, type Tab } from "@/lib/adminAccess";
 import { LogOut, Plus, Trash2, Edit3, Image as ImageIcon, X, Pin, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -16,9 +17,6 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminDashboard,
 });
 
-const TABS = ["Overview", "Candidates", "Tickets", "Announcements", "Gallery", "Videos", "Sponsors", "Officials", "Settings"] as const;
-type Tab = typeof TABS[number];
-type DashboardRole = "admin" | "chairman";
 const TICKET_PRICE = 50;
 const REMIT_PER_TICKET = 45;
 const CANDIDATE_SHARE_PER_TICKET = TICKET_PRICE - REMIT_PER_TICKET;
@@ -86,7 +84,7 @@ function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("Overview");
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: dashboardRole = "chairman" } = useQuery({
+  const { data: dashboardRole = "content_admin" } = useQuery({
     queryKey: ["dashboard-role"],
     queryFn: async (): Promise<DashboardRole> => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -95,14 +93,16 @@ function AdminDashboard() {
         .from("user_roles")
         .select("role")
         .eq("user_id", userData.user.id)
-        .in("role", ["admin", "chairman"]) as any);
-      return data?.some((row: any) => row.role === "admin") ? "admin" : "chairman";
+        .in("role", ["admin", "chairman", "content_admin"]) as any);
+      if (data?.some((row: any) => row.role === "admin")) return "admin";
+      if (data?.some((row: any) => row.role === "chairman")) return "chairman";
+      return "content_admin";
     },
   });
-  const availableTabs = TABS.filter((t) => dashboardRole === "admin" || t !== "Tickets");
+  const availableTabs = dashboardTabsForRole(dashboardRole);
 
   useEffect(() => {
-    if (dashboardRole !== "admin" && tab === "Tickets") setTab("Overview");
+    if (!canAccessDashboardTab(dashboardRole, tab)) setTab("Overview");
   }, [dashboardRole, tab]);
 
   async function signOut() {
@@ -140,15 +140,15 @@ function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-5 py-10">
-        {tab === "Overview" && <Overview role={dashboardRole} />}
-        {tab === "Candidates" && <CandidatesAdmin />}
-        {dashboardRole === "admin" && tab === "Tickets" && <TicketsAdmin />}
-        {tab === "Announcements" && <AnnouncementsAdmin />}
-        {tab === "Gallery" && <GalleryAdmin />}
-        {tab === "Videos" && <VideosAdmin />}
-        {tab === "Sponsors" && <SponsorsAdmin />}
-        {tab === "Officials" && <OfficialsAdmin />}
-        {tab === "Settings" && <SettingsAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Overview" && <Overview role={dashboardRole} />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Candidates" && <CandidatesAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Tickets" && <TicketsAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Announcements" && <AnnouncementsAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Gallery" && <GalleryAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Videos" && <VideosAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Sponsors" && <SponsorsAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Officials" && <OfficialsAdmin />}
+        {canAccessDashboardTab(dashboardRole, tab) && tab === "Settings" && <SettingsAdmin />}
       </main>
     </div>
   );
@@ -325,23 +325,30 @@ function ImageUpload({ value, onChange, folder, label = "Image" }: { value?: str
 /* ============== OVERVIEW ============== */
 
 function Overview({ role }: { role: DashboardRole }) {
-  const candidates = useQuery(candidatesQuery);
+  const canSeeFullOverview = role !== "content_admin";
+  const candidates = useQuery({ ...candidatesQuery, enabled: canSeeFullOverview });
   const announcements = useQuery(announcementsQuery);
   const albums = useQuery(albumsQuery);
   const videos = useQuery(videosQuery);
-  const sponsors = useQuery(sponsorsQuery);
-  const people = useQuery(pageantPeopleQuery);
-  const stats = [
-    { label: "Candidates", value: candidates.data?.length ?? 0 },
-    { label: "Announcements", value: announcements.data?.length ?? 0 },
-    { label: "Albums", value: albums.data?.length ?? 0 },
-    { label: "Videos", value: videos.data?.length ?? 0 },
-    { label: "Sponsors", value: sponsors.data?.length ?? 0 },
-    { label: "Officials", value: people.data?.length ?? 0 },
-  ];
+  const sponsors = useQuery({ ...sponsorsQuery, enabled: canSeeFullOverview });
+  const people = useQuery({ ...pageantPeopleQuery, enabled: canSeeFullOverview });
+  const stats = canSeeFullOverview
+    ? [
+        { label: "Candidates", value: candidates.data?.length ?? 0 },
+        { label: "Announcements", value: announcements.data?.length ?? 0 },
+        { label: "Albums", value: albums.data?.length ?? 0 },
+        { label: "Videos", value: videos.data?.length ?? 0 },
+        { label: "Sponsors", value: sponsors.data?.length ?? 0 },
+        { label: "Officials", value: people.data?.length ?? 0 },
+      ]
+    : [
+        { label: "Announcements", value: announcements.data?.length ?? 0 },
+        { label: "Albums", value: albums.data?.length ?? 0 },
+        { label: "Videos", value: videos.data?.length ?? 0 },
+      ];
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className={`grid grid-cols-2 md:grid-cols-3 ${canSeeFullOverview ? "lg:grid-cols-6" : "lg:grid-cols-3"} gap-4`}>
         {stats.map((s) => (
           <div key={s.label} className="glass-emerald rounded-2xl p-6 text-center">
             <div className="font-display text-4xl text-gold-gradient">{s.value}</div>
@@ -353,7 +360,9 @@ function Overview({ role }: { role: DashboardRole }) {
         <p className="text-(--ivory)/80 font-serif text-lg">
           {role === "admin"
             ? "Manage the entire site from here. Add candidates, encode ticket pickups, post announcements, upload photos & videos, and edit the public copy from Settings."
-            : "Manage public site content from here. Add candidates, post announcements, upload photos & videos, update sponsors and officials, and edit the public copy from Settings."}
+            : role === "chairman"
+              ? "Manage public site content from here. Add candidates, post announcements, upload photos & videos, update sponsors and officials, and edit the public copy from Settings."
+              : "Manage public site content from here. Post announcements, update gallery albums, and upload videos."}
         </p>
         {role === "admin" && (
           <p className="mt-3 text-(--ivory)/60 text-sm">
