@@ -1439,6 +1439,8 @@ function GalleryAdmin() {
   const qc = useQueryClient();
   const { data = [] } = useQuery(albumsQuery);
   const [editing, setEditing] = useState<any | null>(null);
+  const [uploadingAlbumId, setUploadingAlbumId] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
 
   const saveAlbum = useMutation({
     mutationFn: async (a: any) => {
@@ -1453,14 +1455,38 @@ function GalleryAdmin() {
     mutationFn: async (id: string) => { const { error } = await supabase.from("albums").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { toast.success("Deleted."); qc.invalidateQueries({ queryKey: ["albums"] }); },
   });
-  const addPhoto = useMutation({
-    mutationFn: async ({ album_id, file }: { album_id: string; file: File }) => {
-      const url = await uploadToStorage(file, `albums/${album_id}`);
-      const { error } = await supabase.from("photos").insert({ album_id, image_url: url });
-      if (error) throw error;
+  const addPhotos = useMutation({
+    mutationFn: async ({ album, files }: { album: any; files: File[] }) => {
+      const imageFiles = files
+        .filter((file) => file.type.startsWith("image/"))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+
+      if (imageFiles.length === 0) throw new Error("Please choose image files.");
+
+      setUploadingAlbumId(album.id);
+      setUploadProgress({ done: 0, total: imageFiles.length });
+
+      const currentPhotoCount = album.photos?.length ?? 0;
+      for (const [index, file] of imageFiles.entries()) {
+        const url = await uploadToStorage(file, `albums/${album.id}`);
+        const { error } = await supabase.from("photos").insert({
+          album_id: album.id,
+          image_url: url,
+          sort_order: currentPhotoCount + index + 1,
+        });
+        if (error) throw error;
+        setUploadProgress({ done: index + 1, total: imageFiles.length });
+      }
     },
-    onSuccess: () => { toast.success("Photo added."); qc.invalidateQueries({ queryKey: ["albums"] }); },
+    onSuccess: (_, vars) => {
+      toast.success(`${vars.files.length} photo${vars.files.length === 1 ? "" : "s"} added.`);
+      qc.invalidateQueries({ queryKey: ["albums"] });
+    },
     onError: (e: any) => toast.error(e.message),
+    onSettled: () => {
+      setUploadingAlbumId(null);
+      setUploadProgress(null);
+    },
   });
   const delPhoto = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("photos").delete().eq("id", id); if (error) throw error; },
@@ -1479,8 +1505,22 @@ function GalleryAdmin() {
               </div>
               <div className="flex gap-2">
                 <label className="cursor-pointer text-xs uppercase tracking-[0.2em] text-(--gold-soft) hover:text-(--gold) flex items-center gap-1">
-                  <Upload className="w-4 h-4" /> Add photo
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && addPhoto.mutate({ album_id: a.id, file: e.target.files[0] })} />
+                  <Upload className="w-4 h-4" />
+                  {uploadingAlbumId === a.id && uploadProgress
+                    ? `Uploading ${uploadProgress.done}/${uploadProgress.total}`
+                    : "Add photos"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    disabled={addPhotos.isPending}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      e.currentTarget.value = "";
+                      if (files.length > 0) addPhotos.mutate({ album: a, files });
+                    }}
+                  />
                 </label>
                 <button onClick={() => setEditing(a)} className="text-(--gold-soft) p-1"><Edit3 className="w-4 h-4" /></button>
                 <button onClick={() => confirm("Delete album and all its photos?") && delAlbum.mutate(a.id)} className="text-(--destructive) p-1"><Trash2 className="w-4 h-4" /></button>
