@@ -1,27 +1,31 @@
 # Ticket inventory Google Sheets backup
 
-This Google Apps Script receives ticket inventory events from the Supabase
-database trigger and writes them to the native Google Sheet:
+This standalone Google Apps Script creates the backup spreadsheet in the Google
+account running the script, then receives ticket inventory events from the
+Supabase database trigger.
 
 `SK Lalo 2026 - Ticket Inventory Backup`
 
 ## Google Apps Script setup
 
-1. Open the backup spreadsheet and create a bound Apps Script project.
-2. Replace `Code.gs` with this directory's `Code.gs`.
-3. Add a Script Property named `TICKET_BACKUP_SPREADSHEET_ID` with the target
-   Google Sheet ID.
-4. Add a Script Property named `TICKET_BACKUP_SECRET` with a strong random value.
+1. Sign in to the intended Google account and open `script.google.com/create`.
+2. Replace the default code with this directory's `Code.gs`.
+3. Run `setupTicketBackup` once and approve the requested Google Sheets access.
+4. Copy the spreadsheet URL and webhook secret from the execution log.
 5. Deploy as a Web app, execute as the owner, and allow access to anyone.
-6. Store the deployment URL and the same secret in Supabase Vault as
+6. Store the deployment URL and webhook secret in Supabase Vault as
    `ticket_backup_webhook_url` and `ticket_backup_webhook_secret`.
+
+Running `setupTicketBackup` again reuses the same spreadsheet. Run
+`getTicketBackupSetup` whenever the URL or secret needs to be shown again.
 
 Never commit the shared secret or paste it into browser-side application code.
 
 ## Supabase setup
 
 Run `supabase/migrations/20260713000000_ticket_google_sheets_backup.sql`, then
-create the two Vault secrets. To mirror existing ticket entries after setup:
+replace the placeholders and run `configure-supabase.sql`. To mirror existing
+ticket entries after setup, that script finishes by running:
 
 ```sql
 select private.backfill_ticket_google_sheets_backup();
