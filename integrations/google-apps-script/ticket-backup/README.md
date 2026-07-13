@@ -9,9 +9,11 @@ database trigger and writes them to the native Google Sheet:
 
 1. Open the backup spreadsheet and create a bound Apps Script project.
 2. Replace `Code.gs` with this directory's `Code.gs`.
-3. Add a Script Property named `TICKET_BACKUP_SECRET` with a strong random value.
-4. Deploy as a Web app, execute as the owner, and allow access to anyone.
-5. Store the deployment URL and the same secret in Supabase Vault as
+3. Add a Script Property named `TICKET_BACKUP_SPREADSHEET_ID` with the target
+   Google Sheet ID.
+4. Add a Script Property named `TICKET_BACKUP_SECRET` with a strong random value.
+5. Deploy as a Web app, execute as the owner, and allow access to anyone.
+6. Store the deployment URL and the same secret in Supabase Vault as
    `ticket_backup_webhook_url` and `ticket_backup_webhook_secret`.
 
 Never commit the shared secret or paste it into browser-side application code.

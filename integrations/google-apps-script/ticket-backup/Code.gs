@@ -1,8 +1,8 @@
 const TICKET_BACKUP = Object.freeze({
-  spreadsheetId: "1klO9b_CLxcZpW6iwB3cBQypycLb90GMyG4mN-Zaq52s",
   inventorySheet: "Ticket Inventory",
   auditSheet: "Audit Log",
   secretProperty: "TICKET_BACKUP_SECRET",
+  spreadsheetIdProperty: "TICKET_BACKUP_SPREADSHEET_ID",
 });
 
 function doPost(event) {
@@ -35,7 +35,12 @@ function doPost(event) {
       throw new Error("Unsupported operation");
     }
 
-    const spreadsheet = SpreadsheetApp.openById(TICKET_BACKUP.spreadsheetId);
+    const spreadsheetId = PropertiesService.getScriptProperties().getProperty(
+      TICKET_BACKUP.spreadsheetIdProperty,
+    );
+    if (!spreadsheetId) throw new Error("Missing backup spreadsheet ID");
+
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
     const inventorySheet = requiredSheet(
       spreadsheet,
       TICKET_BACKUP.inventorySheet,
