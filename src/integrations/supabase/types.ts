@@ -175,8 +175,13 @@ export type Database = {
           created_at: string
           entry_date: string
           id: string
+          is_published: boolean
           note: string | null
+          published_at: string | null
           quantity: number
+          remittance_date: string | null
+          remittance_note: string | null
+          remitted_quantity: number
           serial_from: string | null
           serial_to: string | null
         }
@@ -185,8 +190,13 @@ export type Database = {
           created_at?: string
           entry_date?: string
           id?: string
+          is_published?: boolean
           note?: string | null
+          published_at?: string | null
           quantity: number
+          remittance_date?: string | null
+          remittance_note?: string | null
+          remitted_quantity?: number
           serial_from?: string | null
           serial_to?: string | null
         }
@@ -195,8 +205,13 @@ export type Database = {
           created_at?: string
           entry_date?: string
           id?: string
+          is_published?: boolean
           note?: string | null
+          published_at?: string | null
           quantity?: number
+          remittance_date?: string | null
+          remittance_note?: string | null
+          remitted_quantity?: number
           serial_from?: string | null
           serial_to?: string | null
         }
@@ -206,6 +221,51 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_remittances: {
+        Row: {
+          amount: number
+          candidate_id: string
+          created_at: string
+          id: string
+          legacy_ticket_entry_id: string | null
+          note: string | null
+          remittance_date: string
+        }
+        Insert: {
+          amount: number
+          candidate_id: string
+          created_at?: string
+          id?: string
+          legacy_ticket_entry_id?: string | null
+          note?: string | null
+          remittance_date?: string
+        }
+        Update: {
+          amount?: number
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          legacy_ticket_entry_id?: string | null
+          note?: string | null
+          remittance_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_remittances_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_remittances_legacy_ticket_entry_id_fkey"
+            columns: ["legacy_ticket_entry_id"]
+            isOneToOne: true
+            referencedRelation: "ticket_entries"
             referencedColumns: ["id"]
           },
         ]

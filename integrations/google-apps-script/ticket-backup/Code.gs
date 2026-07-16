@@ -3,6 +3,8 @@ const TICKET_BACKUP = Object.freeze({
   guideSheet: "Guide",
   inventorySheet: "Ticket Inventory",
   auditSheet: "Audit Log",
+  remittanceSheet: "Remittance Ledger",
+  remittanceAuditSheet: "Remittance Audit",
   secretProperty: "TICKET_BACKUP_SECRET",
   spreadsheetIdProperty: "TICKET_BACKUP_SPREADSHEET_ID",
 });
@@ -50,6 +52,40 @@ const AUDIT_HEADERS = Object.freeze([
   "Remittance Date",
   "Remittance Note",
   "General Note",
+  "Created At",
+  "Received At",
+  "Record JSON",
+]);
+
+const REMITTANCE_HEADERS = Object.freeze([
+  "Payment ID",
+  "Sync Status",
+  "Candidate ID",
+  "Candidate Name",
+  "Division",
+  "Sitio",
+  "Amount",
+  "Remittance Date",
+  "Note",
+  "Legacy Ticket Entry ID",
+  "Created At",
+  "Last Synced At",
+  "Deleted At",
+  "Last Event ID",
+]);
+
+const REMITTANCE_AUDIT_HEADERS = Object.freeze([
+  "Event ID",
+  "Operation",
+  "Payment ID",
+  "Candidate ID",
+  "Candidate Name",
+  "Division",
+  "Sitio",
+  "Amount",
+  "Remittance Date",
+  "Note",
+  "Legacy Ticket Entry ID",
   "Created At",
   "Received At",
   "Record JSON",
@@ -130,10 +166,18 @@ function buildBackupWorkbook(spreadsheet) {
   const audit =
     spreadsheet.getSheetByName(TICKET_BACKUP.auditSheet) ||
     spreadsheet.insertSheet(TICKET_BACKUP.auditSheet);
+  const remittance =
+    spreadsheet.getSheetByName(TICKET_BACKUP.remittanceSheet) ||
+    spreadsheet.insertSheet(TICKET_BACKUP.remittanceSheet);
+  const remittanceAudit =
+    spreadsheet.getSheetByName(TICKET_BACKUP.remittanceAuditSheet) ||
+    spreadsheet.insertSheet(TICKET_BACKUP.remittanceAuditSheet);
 
   setupGuideSheet(guide);
   setupDataSheet(inventory, INVENTORY_HEADERS);
   setupDataSheet(audit, AUDIT_HEADERS);
+  setupDataSheet(remittance, REMITTANCE_HEADERS);
+  setupDataSheet(remittanceAudit, REMITTANCE_AUDIT_HEADERS);
 }
 
 function setupGuideSheet(sheet) {
@@ -148,7 +192,7 @@ function setupGuideSheet(sheet) {
     .setFontColor("#111827")
     .setBackground("#e5e7eb");
   sheet.setRowHeight(1, 34);
-  sheet.getRange("A3:B7").setValues([
+  sheet.getRange("A3:B9").setValues([
     [
       "Purpose",
       "Automatic backup of the admin ticket inventory from Supabase.",
@@ -158,15 +202,17 @@ function setupGuideSheet(sheet) {
       "Latest state of every ticket entry, one row per Ticket ID.",
     ],
     ["Audit Log", "Append-only history of INSERT, UPDATE, and DELETE events."],
+    ["Remittance Ledger", "Latest state of every peso payment."],
+    ["Remittance Audit", "Append-only history of payment events."],
     ["Recovery", "Use Ticket ID as the unique key when restoring records."],
-    ["Important", "Do not rename the two data tabs or their header columns."],
+    ["Important", "Do not rename the four data tabs or their header columns."],
   ]);
   sheet
-    .getRange("A3:A7")
+    .getRange("A3:A9")
     .setFontWeight("bold")
     .setFontColor("#111827")
     .setBackground("#f3f4f6");
-  sheet.getRange("A3:B7").setWrap(true);
+  sheet.getRange("A3:B9").setWrap(true);
   sheet.setColumnWidth(1, 140);
   sheet.setColumnWidth(2, 520);
 }
@@ -198,7 +244,11 @@ function setupDataSheet(sheet, headers) {
   sheet.setColumnWidths(1, headers.length, 130);
   sheet.setColumnWidth(
     headers.length,
-    sheet.getName() === TICKET_BACKUP.auditSheet ? 360 : 250,
+    [TICKET_BACKUP.auditSheet, TICKET_BACKUP.remittanceAuditSheet].includes(
+      sheet.getName(),
+    )
+      ? 360
+      : 250,
   );
 }
 
@@ -226,10 +276,14 @@ function doPost(event) {
     ).toUpperCase();
     const record = payload.record || {};
     const candidate = payload.candidate || {};
-    const ticketId = requiredText(record.id, "record.id");
+    const entityType = payload.entity_type || "ticket_entry";
+    const recordId = requiredText(record.id, "record.id");
 
     if (!["INSERT", "UPDATE", "DELETE", "BACKFILL"].includes(operation)) {
       throw new Error("Unsupported operation");
+    }
+    if (!["ticket_entry", "ticket_remittance"].includes(entityType)) {
+      throw new Error("Unsupported entity type");
     }
 
     const spreadsheetId = PropertiesService.getScriptProperties().getProperty(
@@ -238,31 +292,60 @@ function doPost(event) {
     if (!spreadsheetId) throw new Error("Missing backup spreadsheet ID");
 
     const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-    const inventorySheet = requiredSheet(
-      spreadsheet,
-      TICKET_BACKUP.inventorySheet,
-    );
-    const auditSheet = requiredSheet(spreadsheet, TICKET_BACKUP.auditSheet);
-
-    if (eventAlreadyRecorded(auditSheet, eventId)) {
-      return jsonResponse({ ok: true, duplicate: true, event_id: eventId });
-    }
-
     const receivedAt = new Date();
-    auditSheet.appendRow(
-      auditRow(eventId, operation, record, candidate, receivedAt),
-    );
-    upsertInventory(
-      inventorySheet,
-      eventId,
-      operation,
-      record,
-      candidate,
-      receivedAt,
-    );
+
+    if (entityType === "ticket_remittance") {
+      const ledgerSheet = requiredSheet(
+        spreadsheet,
+        TICKET_BACKUP.remittanceSheet,
+      );
+      const remittanceAuditSheet = requiredSheet(
+        spreadsheet,
+        TICKET_BACKUP.remittanceAuditSheet,
+      );
+      if (eventAlreadyRecorded(remittanceAuditSheet, eventId)) {
+        return jsonResponse({ ok: true, duplicate: true, event_id: eventId });
+      }
+      remittanceAuditSheet.appendRow(
+        remittanceAuditRow(eventId, operation, record, candidate, receivedAt),
+      );
+      upsertRemittance(
+        ledgerSheet,
+        eventId,
+        operation,
+        record,
+        candidate,
+        receivedAt,
+      );
+    } else {
+      const inventorySheet = requiredSheet(
+        spreadsheet,
+        TICKET_BACKUP.inventorySheet,
+      );
+      const auditSheet = requiredSheet(spreadsheet, TICKET_BACKUP.auditSheet);
+      if (eventAlreadyRecorded(auditSheet, eventId)) {
+        return jsonResponse({ ok: true, duplicate: true, event_id: eventId });
+      }
+      auditSheet.appendRow(
+        auditRow(eventId, operation, record, candidate, receivedAt),
+      );
+      upsertInventory(
+        inventorySheet,
+        eventId,
+        operation,
+        record,
+        candidate,
+        receivedAt,
+      );
+    }
     SpreadsheetApp.flush();
 
-    return jsonResponse({ ok: true, event_id: eventId, ticket_id: ticketId });
+    return jsonResponse({
+      ok: true,
+      event_id: eventId,
+      entity_type: entityType,
+      record_id: recordId,
+    });
   } catch (error) {
     console.error(error);
     return jsonResponse({ ok: false, error: String(error.message || error) });
@@ -306,7 +389,7 @@ function upsertInventory(
   }
 
   sheet
-    .getRange(targetRow, 1, 1, 21)
+    .getRange(targetRow, 1, 1, INVENTORY_HEADERS.length)
     .setValues([
       inventoryRow(eventId, operation, record, candidate, receivedAt),
     ]);
@@ -365,6 +448,80 @@ function auditRow(eventId, operation, record, candidate, receivedAt) {
     record.remittance_date,
     record.remittance_note,
     record.note,
+    record.created_at,
+    receivedAt,
+    JSON.stringify(record),
+  ]);
+}
+
+function upsertRemittance(
+  sheet,
+  eventId,
+  operation,
+  record,
+  candidate,
+  receivedAt,
+) {
+  const paymentId = requiredText(record.id, "record.id");
+  const lastRow = sheet.getLastRow();
+  let targetRow = lastRow + 1;
+
+  if (lastRow >= 2) {
+    const existing = sheet
+      .getRange(2, 1, lastRow - 1, 1)
+      .createTextFinder(paymentId)
+      .matchEntireCell(true)
+      .findNext();
+    if (existing) targetRow = existing.getRow();
+  }
+
+  sheet
+    .getRange(targetRow, 1, 1, REMITTANCE_HEADERS.length)
+    .setValues([
+      remittanceRow(eventId, operation, record, candidate, receivedAt),
+    ]);
+}
+
+function remittanceRow(eventId, operation, record, candidate, receivedAt) {
+  const deleted = operation === "DELETE";
+
+  return sanitizeRow([
+    record.id,
+    deleted ? "DELETED" : "ACTIVE",
+    record.candidate_id,
+    candidate.name,
+    candidate.division,
+    candidate.sitio,
+    numberOrZero(record.amount),
+    record.remittance_date,
+    record.note,
+    record.legacy_ticket_entry_id,
+    record.created_at,
+    receivedAt,
+    deleted ? receivedAt : "",
+    eventId,
+  ]);
+}
+
+function remittanceAuditRow(
+  eventId,
+  operation,
+  record,
+  candidate,
+  receivedAt,
+) {
+  return sanitizeRow([
+    eventId,
+    operation,
+    record.id,
+    record.candidate_id,
+    candidate.name,
+    candidate.division,
+    candidate.sitio,
+    numberOrZero(record.amount),
+    record.remittance_date,
+    record.note,
+    record.legacy_ticket_entry_id,
     record.created_at,
     receivedAt,
     JSON.stringify(record),

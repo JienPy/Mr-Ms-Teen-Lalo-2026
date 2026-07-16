@@ -18,6 +18,8 @@ Supabase database trigger.
 
 Running `setupTicketBackup` again reuses the same spreadsheet. Run
 `getTicketBackupSetup` whenever the URL or secret needs to be shown again.
+After updating `Code.gs`, run `setupTicketBackup` again to add any new backup
+tabs before deploying a new web app version.
 
 Never commit the shared secret or paste it into browser-side application code.
 
@@ -31,5 +33,7 @@ ticket entries after setup, that script finishes by running:
 select private.backfill_ticket_google_sheets_backup();
 ```
 
-The `Ticket Inventory` tab keeps one current row per ticket ID. The `Audit Log`
-tab keeps every insert, update, delete, and backfill event for recovery.
+The `Ticket Inventory` tab keeps one current row per ticket ID, while `Audit
+Log` keeps every ticket event. `Remittance Ledger` keeps the latest state of
+each peso payment, and `Remittance Audit` preserves every payment event for
+recovery.

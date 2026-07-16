@@ -10,7 +10,7 @@ import {
   candidatesQuery, announcementsQuery, albumsQuery, videosQuery, sponsorsQuery, settingsQuery, pageantPeopleQuery, DEFAULT_PAGEANT_PEOPLE, DEFAULT_SPONSORS, withDefaultPageantPeople, withDefaultSponsors,
 } from "@/lib/queries";
 import { canAccessDashboardTab, dashboardTabsForRole, type DashboardRole, type Tab } from "@/lib/adminAccess";
-import { LogOut, Plus, Trash2, Edit3, Image as ImageIcon, X, Pin, Upload } from "lucide-react";
+import { CircleDollarSign, LogOut, Plus, Trash2, Edit3, Image as ImageIcon, X, Pin, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin Dashboard — Mister & Miss Teen Lalo 2026" }] }),
@@ -22,11 +22,13 @@ const REMIT_PER_TICKET = 45;
 const CANDIDATE_SHARE_PER_TICKET = TICKET_PRICE - REMIT_PER_TICKET;
 
 function peso(value: number) {
+  const amount = Number.isFinite(value) ? value : 0;
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(Number.isFinite(value) ? value : 0);
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 function localDateInputValue(date = new Date()) {
@@ -66,16 +68,17 @@ function weekRangeForDate(dateValue = localDateInputValue()) {
   };
 }
 
-function ticketMoney(quantity: number, remittedQuantity = 0) {
+function ticketMoney(quantity: number, remittedAmount = 0) {
   const issued = Math.max(0, Number(quantity) || 0);
-  const remitted = Math.max(0, Math.min(Number(remittedQuantity) || 0, issued));
+  const received = Math.max(0, Number(remittedAmount) || 0);
+  const expectedRemit = issued * REMIT_PER_TICKET;
   return {
     issued,
-    remitted,
     gross: issued * TICKET_PRICE,
-    expectedRemit: issued * REMIT_PER_TICKET,
-    remittedAmount: remitted * REMIT_PER_TICKET,
-    balance: (issued - remitted) * REMIT_PER_TICKET,
+    expectedRemit,
+    remittedAmount: received,
+    balance: Math.max(expectedRemit - received, 0),
+    credit: Math.max(received - expectedRemit, 0),
     candidateShare: issued * CANDIDATE_SHARE_PER_TICKET,
   };
 }
@@ -882,9 +885,12 @@ function TicketsAdmin() {
     entry_date: localDateInputValue(),
     serial_from: "",
     serial_to: "",
-    remitted_quantity: 0,
-    remittance_date: "",
-    remittance_note: "",
+    note: "",
+  };
+  const emptyRemittanceForm = {
+    candidate_id: "",
+    amount: "",
+    remittance_date: localDateInputValue(),
     note: "",
   };
 
@@ -901,6 +907,18 @@ function TicketsAdmin() {
     queryFn: async () => {
       const { data, error } = await (supabase.from("ticket_entries") as any)
         .select("*, candidates(id,name,division,sitio)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const remittances = useQuery({
+    queryKey: ["ticket-remittances"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_remittances")
+        .select("*, candidates(id,name,division,sitio)")
+        .order("remittance_date", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -947,59 +965,77 @@ function TicketsAdmin() {
 
   const [form, setForm] = useState<any>(emptyForm);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [remittanceForm, setRemittanceForm] = useState<any>(emptyRemittanceForm);
+  const [editingRemittanceId, setEditingRemittanceId] = useState<string | null>(null);
   const [entrySearch, setEntrySearch] = useState("");
   const [entryStatus, setEntryStatus] = useState<"all" | "draft" | "published">("all");
   const [entryDate, setEntryDate] = useState("");
   const [entryPage, setEntryPage] = useState(1);
   const formWeek = weekRangeForDate(form.entry_date);
-  const formMoney = ticketMoney(Number(form.quantity), Number(form.remitted_quantity));
+  const formMoney = ticketMoney(Number(form.quantity));
   const totalWeek = (standings.data ?? []).reduce((s: number, r: any) => s + Number(r.week_tickets), 0);
   const publishedTicketEntries = (ticketEntries.data ?? []).filter((entry: any) => entry.is_published);
-  const analytics = publishedTicketEntries.reduce((summary: any, entry: any) => {
-    const money = ticketMoney(Number(entry.quantity), Number(entry.remitted_quantity));
-    summary.issued += money.issued;
-    summary.remittedTickets += money.remitted;
-    summary.gross += money.gross;
-    summary.expectedRemit += money.expectedRemit;
-    summary.remittedAmount += money.remittedAmount;
-    summary.balance += money.balance;
-    summary.candidateShare += money.candidateShare;
-    return summary;
-  }, { issued: 0, remittedTickets: 0, gross: 0, expectedRemit: 0, remittedAmount: 0, balance: 0, candidateShare: 0 });
-  const candidateAnalytics = Array.from(publishedTicketEntries.reduce((map: Map<string, any>, entry: any) => {
-    const candidate = entry.candidates;
-    const key = entry.candidate_id;
-    const row = map.get(key) ?? {
-      candidate_id: key,
-      name: candidate?.name ?? "Unknown candidate",
-      division: candidate?.division,
-      sitio: candidate?.sitio,
-      issued: 0,
-      remittedTickets: 0,
-      gross: 0,
-      expectedRemit: 0,
-      remittedAmount: 0,
-      balance: 0,
-      candidateShare: 0,
-      lastRemittanceDate: "",
+  const candidateAnalytics = (() => {
+    const rows = new Map<string, any>();
+    const getRow = (candidateId: string, candidate: any) => {
+      const existing = rows.get(candidateId);
+      if (existing) return existing;
+      const row = {
+        candidate_id: candidateId,
+        name: candidate?.name ?? "Unknown candidate",
+        division: candidate?.division,
+        sitio: candidate?.sitio,
+        issued: 0,
+        remittedAmount: 0,
+        lastRemittanceDate: "",
+      };
+      rows.set(candidateId, row);
+      return row;
     };
-    const money = ticketMoney(Number(entry.quantity), Number(entry.remitted_quantity));
-    row.issued += money.issued;
-    row.remittedTickets += money.remitted;
-    row.gross += money.gross;
-    row.expectedRemit += money.expectedRemit;
-    row.remittedAmount += money.remittedAmount;
-    row.balance += money.balance;
-    row.candidateShare += money.candidateShare;
-    if (entry.remittance_date && (!row.lastRemittanceDate || entry.remittance_date > row.lastRemittanceDate)) {
-      row.lastRemittanceDate = entry.remittance_date;
+
+    for (const entry of publishedTicketEntries) {
+      getRow(entry.candidate_id, entry.candidates).issued += Number(entry.quantity) || 0;
     }
-    map.set(key, row);
-    return map;
-  }, new Map<string, any>()).values()).sort((a: any, b: any) =>
-    b.balance - a.balance ||
-    b.expectedRemit - a.expectedRemit ||
-    a.name.localeCompare(b.name)
+    for (const payment of remittances.data ?? []) {
+      const row = getRow(payment.candidate_id, payment.candidates);
+      row.remittedAmount += Number(payment.amount) || 0;
+      if (!row.lastRemittanceDate || payment.remittance_date > row.lastRemittanceDate) {
+        row.lastRemittanceDate = payment.remittance_date;
+      }
+    }
+
+    return Array.from(rows.values())
+      .map((row) => ({ ...row, ...ticketMoney(row.issued, row.remittedAmount) }))
+      .sort((a, b) =>
+        b.balance - a.balance ||
+        b.expectedRemit - a.expectedRemit ||
+        a.name.localeCompare(b.name)
+      );
+  })();
+  const analytics = candidateAnalytics.reduce((summary: any, row: any) => {
+    summary.issued += row.issued;
+    summary.gross += row.gross;
+    summary.expectedRemit += row.expectedRemit;
+    summary.remittedAmount += row.remittedAmount;
+    summary.balance += row.balance;
+    summary.credit += row.credit;
+    summary.candidateShare += row.candidateShare;
+    return summary;
+  }, { issued: 0, gross: 0, expectedRemit: 0, remittedAmount: 0, balance: 0, credit: 0, candidateShare: 0 });
+  const selectedCandidateAnalytics = candidateAnalytics.find(
+    (row: any) => row.candidate_id === remittanceForm.candidate_id,
+  );
+  const paymentBeingEdited = (remittances.data ?? []).find(
+    (payment: any) => payment.id === editingRemittanceId,
+  );
+  const replacedAmount =
+    paymentBeingEdited?.candidate_id === remittanceForm.candidate_id
+      ? Number(paymentBeingEdited.amount) || 0
+      : 0;
+  const remittancePreview = ticketMoney(
+    selectedCandidateAnalytics?.issued ?? 0,
+    Math.max(0, (selectedCandidateAnalytics?.remittedAmount ?? 0) - replacedAmount) +
+      (Number(remittanceForm.amount) || 0),
   );
   const filteredEntries = (ticketEntries.data ?? []).filter((entry: any) => {
     const candidate = entry.candidates;
@@ -1027,6 +1063,7 @@ function TicketsAdmin() {
   const refreshTicketData = () => {
     qc.invalidateQueries({ queryKey: ["admin-standings"] });
     qc.invalidateQueries({ queryKey: ["ticket-entries"] });
+    qc.invalidateQueries({ queryKey: ["ticket-remittances"] });
     qc.invalidateQueries({ queryKey: ["leaderboard"] });
   };
   const resetForm = () => {
@@ -1037,18 +1074,13 @@ function TicketsAdmin() {
     mutationFn: async () => {
       if (!form.candidate_id) throw new Error("Pick a candidate");
       const quantity = Number(form.quantity);
-      const remittedQuantity = Number(form.remitted_quantity) || 0;
-      if (remittedQuantity < 0) throw new Error("Remitted tickets cannot be negative");
-      if (remittedQuantity > quantity) throw new Error("Remitted tickets cannot be more than issued tickets");
+      if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("Quantity must be a positive whole number");
       const payload = {
         candidate_id: form.candidate_id,
         quantity,
         entry_date: form.entry_date,
         serial_from: form.serial_from || null,
         serial_to: form.serial_to || null,
-        remitted_quantity: remittedQuantity,
-        remittance_date: form.remittance_date || null,
-        remittance_note: form.remittance_note || null,
         note: form.note || null,
       };
       const { error } = editingEntryId
@@ -1059,6 +1091,46 @@ function TicketsAdmin() {
     onSuccess: () => {
       toast.success(editingEntryId ? "Ticket entry updated." : "Ticket entry saved as draft.");
       resetForm();
+      refreshTicketData();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const resetRemittanceForm = () => {
+    setEditingRemittanceId(null);
+    setRemittanceForm(emptyRemittanceForm);
+  };
+  const saveRemittance = useMutation({
+    mutationFn: async () => {
+      if (!remittanceForm.candidate_id) throw new Error("Pick a candidate");
+      const amount = Number(remittanceForm.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter the amount received");
+      if (!remittanceForm.remittance_date) throw new Error("Pick the remittance date");
+      const payload = {
+        candidate_id: remittanceForm.candidate_id,
+        amount,
+        remittance_date: remittanceForm.remittance_date,
+        note: remittanceForm.note || null,
+      };
+      const { error } = editingRemittanceId
+        ? await supabase.from("ticket_remittances").update(payload).eq("id", editingRemittanceId)
+        : await supabase.from("ticket_remittances").insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(editingRemittanceId ? "Remittance updated." : "Remittance recorded.");
+      resetRemittanceForm();
+      refreshTicketData();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const deleteRemittance = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("ticket_remittances").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Remittance deleted.");
+      resetRemittanceForm();
       refreshTicketData();
     },
     onError: (e: any) => toast.error(e.message),
@@ -1096,10 +1168,16 @@ function TicketsAdmin() {
       entry_date: entry.entry_date,
       serial_from: entry.serial_from ?? "",
       serial_to: entry.serial_to ?? "",
-      remitted_quantity: entry.remitted_quantity ?? 0,
-      remittance_date: entry.remittance_date ?? "",
-      remittance_note: entry.remittance_note ?? "",
       note: entry.note ?? "",
+    });
+  }
+  function editRemittance(payment: any) {
+    setEditingRemittanceId(payment.id);
+    setRemittanceForm({
+      candidate_id: payment.candidate_id,
+      amount: Number(payment.amount),
+      remittance_date: payment.remittance_date,
+      note: payment.note ?? "",
     });
   }
 
@@ -1107,13 +1185,13 @@ function TicketsAdmin() {
     <div className="space-y-6">
       <Panel title="Cash Analytics">
         <p className="text-sm text-(--ivory)/70 mb-4">
-          Published pickups are treated as sold. Each ticket is {peso(TICKET_PRICE)}: {peso(REMIT_PER_TICKET)} remittance to you and {peso(CANDIDATE_SHARE_PER_TICKET)} candidate share.
+          Published pickups determine the expected remit at {peso(REMIT_PER_TICKET)} per ticket. Actual cash payments are recorded separately and may be any peso amount.
         </p>
         <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-3">
           {[
             ["Issued Tickets", analytics.issued.toLocaleString()],
             ["Expected Remit", peso(analytics.expectedRemit)],
-            ["Money on Hand", peso(analytics.remittedAmount)],
+            ["Money Received", peso(analytics.remittedAmount)],
             ["Balance to Collect", peso(analytics.balance)],
             ["Candidate Share", peso(analytics.candidateShare)],
           ].map(([label, value]) => (
@@ -1129,9 +1207,8 @@ function TicketsAdmin() {
               <tr>
                 <th className="p-2">Candidate</th>
                 <th className="p-2 text-right">Issued</th>
-                <th className="p-2 text-right">Remitted</th>
                 <th className="p-2 text-right">Expected</th>
-                <th className="p-2 text-right">Money on Hand</th>
+                <th className="p-2 text-right">Money Received</th>
                 <th className="p-2 text-right">Balance</th>
                 <th className="p-2 text-right">Candidate Share</th>
                 <th className="p-2">Last Remit</th>
@@ -1145,10 +1222,12 @@ function TicketsAdmin() {
                     {row.sitio && <span className="text-(--ivory)/45"> · {row.sitio}</span>}
                   </td>
                   <td className="p-2 text-right tabular-nums">{row.issued}</td>
-                  <td className="p-2 text-right tabular-nums">{row.remittedTickets}</td>
                   <td className="p-2 text-right tabular-nums">{peso(row.expectedRemit)}</td>
                   <td className="p-2 text-right tabular-nums text-(--gold-soft)">{peso(row.remittedAmount)}</td>
-                  <td className="p-2 text-right tabular-nums text-(--destructive)">{peso(row.balance)}</td>
+                  <td className={`p-2 text-right tabular-nums ${row.balance > 0 ? "text-(--destructive)" : "text-(--gold-soft)"}`}>
+                    {peso(row.balance)}
+                    {row.credit > 0 && <span className="block text-[10px] text-(--ivory)/50">Credit {peso(row.credit)}</span>}
+                  </td>
                   <td className="p-2 text-right tabular-nums">{peso(row.candidateShare)}</td>
                   <td className="p-2 text-(--ivory)/60">{row.lastRemittanceDate || "—"}</td>
                 </tr>
@@ -1157,6 +1236,120 @@ function TicketsAdmin() {
           </table>
           {candidateAnalytics.length === 0 && (
             <p className="text-center text-(--ivory)/50 italic py-8">No published ticket pickups yet.</p>
+          )}
+        </div>
+      </Panel>
+
+      <Panel title={editingRemittanceId ? "Edit Remittance" : "Record Remittance"}>
+        <p className="text-sm text-(--ivory)/70 mb-4">
+          Enter the actual cash received. Add another record when the candidate makes another partial payment.
+        </p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Select
+            label="Candidate"
+            value={remittanceForm.candidate_id}
+            onChange={(e) => setRemittanceForm({ ...remittanceForm, candidate_id: e.target.value })}
+          >
+            <option value="">Select...</option>
+            {(candidates.data ?? []).map((c: any) => (
+              <option key={c.id} value={c.id}>{c.division === "mr" ? "[Mr] " : "[Ms] "}{c.name}</option>
+            ))}
+          </Select>
+          <TextField
+            label="Amount Received (PHP)"
+            type="number"
+            min={0.01}
+            step={0.01}
+            inputMode="decimal"
+            placeholder="1500"
+            value={remittanceForm.amount}
+            onChange={(e) => setRemittanceForm({ ...remittanceForm, amount: e.target.value })}
+          />
+          <TextField
+            label="Remittance Date"
+            type="date"
+            value={remittanceForm.remittance_date}
+            onChange={(e) => setRemittanceForm({ ...remittanceForm, remittance_date: e.target.value })}
+          />
+          <TextField
+            label="Note (optional)"
+            placeholder="Cash, reference, or receipt no."
+            value={remittanceForm.note}
+            onChange={(e) => setRemittanceForm({ ...remittanceForm, note: e.target.value })}
+          />
+        </div>
+        {remittanceForm.candidate_id && (
+          <div className="mt-4 grid sm:grid-cols-3 gap-4 border-y border-(--gold)/15 py-4">
+            {[
+              ["Expected Remit", peso(remittancePreview.expectedRemit)],
+              ["Total Received After", peso(remittancePreview.remittedAmount)],
+              [remittancePreview.credit > 0 ? "Credit After" : "Balance After", peso(remittancePreview.credit || remittancePreview.balance)],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div className="text-[9px] uppercase tracking-[0.22em] text-(--gold-soft)/65">{label}</div>
+                <div className="mt-1 font-display text-xl text-(--ivory)">{value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="mt-4 flex justify-end gap-3">
+          {editingRemittanceId && <button onClick={resetRemittanceForm} className="text-(--ivory)/70 text-xs uppercase tracking-[0.2em]">Cancel Edit</button>}
+          <GoldButton onClick={() => saveRemittance.mutate()} disabled={saveRemittance.isPending}>
+            <CircleDollarSign className="w-4 h-4" /> {editingRemittanceId ? "Update Payment" : "Record Payment"}
+          </GoldButton>
+        </div>
+      </Panel>
+
+      <Panel title="Remittance History">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-[10px] uppercase tracking-[0.22em] text-(--gold-soft)/70 text-left">
+              <tr>
+                <th className="p-2">Date</th>
+                <th className="p-2">Candidate</th>
+                <th className="p-2 text-right">Amount</th>
+                <th className="p-2">Note</th>
+                <th className="p-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(remittances.data ?? []).map((payment: any) => {
+                const candidate = payment.candidates;
+                return (
+                  <tr key={payment.id} className="border-t border-(--gold)/10">
+                    <td className="p-2 whitespace-nowrap text-(--ivory)/70">{payment.remittance_date}</td>
+                    <td className="p-2">
+                      {candidate?.division === "mr" ? "Mr. " : "Ms. "}{candidate?.name ?? "Unknown candidate"}
+                    </td>
+                    <td className="p-2 text-right tabular-nums font-medium text-(--gold-soft)">{peso(Number(payment.amount))}</td>
+                    <td className="p-2 text-(--ivory)/60">{payment.note || "—"}</td>
+                    <td className="p-2">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => editRemittance(payment)}
+                          className="p-2 text-(--ivory)/70 hover:text-(--gold-soft)"
+                          aria-label="Edit remittance"
+                          title="Edit remittance"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => confirm("Delete this remittance record?") && deleteRemittance.mutate(payment.id)}
+                          className="p-2 text-(--destructive)"
+                          aria-label="Delete remittance"
+                          title="Delete remittance"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {(remittances.data ?? []).length === 0 && (
+            <p className="text-center text-(--ivory)/50 italic py-8">No remittance payments recorded yet.</p>
           )}
         </div>
       </Panel>
@@ -1179,17 +1372,12 @@ function TicketsAdmin() {
           <TextField label="Date Kinuha" type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} />
           <TextField label="Serial From" value={form.serial_from} onChange={(e) => setForm({ ...form, serial_from: e.target.value })} />
           <TextField label="Serial To" value={form.serial_to} onChange={(e) => setForm({ ...form, serial_to: e.target.value })} />
-          <TextField label="Remitted Tickets" type="number" min={0} max={form.quantity} value={form.remitted_quantity} onChange={(e) => setForm({ ...form, remitted_quantity: Number(e.target.value) })} />
-          <TextField label="Remittance Date" type="date" value={form.remittance_date} onChange={(e) => setForm({ ...form, remittance_date: e.target.value })} />
-          <TextField label="Remittance Note" value={form.remittance_note} onChange={(e) => setForm({ ...form, remittance_note: e.target.value })} />
           <TextField label="Note (optional)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
         </div>
-        <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-5 gap-3 rounded-xl border border-(--gold)/15 bg-(--emerald-deep)/35 p-4">
+        <div className="mt-4 grid sm:grid-cols-3 gap-3 border-y border-(--gold)/15 py-4">
           {[
             ["Pickup Value", peso(formMoney.gross)],
             ["Expected Remit", peso(formMoney.expectedRemit)],
-            ["Remitted Now", peso(formMoney.remittedAmount)],
-            ["Balance", peso(formMoney.balance)],
             ["Candidate Share", peso(formMoney.candidateShare)],
           ].map(([label, value]) => (
             <div key={label}>
@@ -1226,7 +1414,7 @@ function TicketsAdmin() {
           {pagedEntries.map((entry: any) => {
             const candidate = entry.candidates;
             const entryWeek = weekRangeForDate(entry.entry_date);
-            const entryMoney = ticketMoney(Number(entry.quantity), Number(entry.remitted_quantity));
+            const entryMoney = ticketMoney(Number(entry.quantity));
             return (
               <div key={entry.id} className="p-4 rounded-lg border border-(--gold)/15 grid lg:grid-cols-[1fr_auto] gap-4 items-center">
                 <div>
@@ -1244,11 +1432,7 @@ function TicketsAdmin() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-(--ivory)/55">
                     <span>Expected: <span className="text-(--ivory)/80">{peso(entryMoney.expectedRemit)}</span></span>
-                    <span>Remitted: <span className="text-(--gold-soft)">{entryMoney.remitted} tickets / {peso(entryMoney.remittedAmount)}</span></span>
-                    <span>Balance: <span className={entryMoney.balance > 0 ? "text-(--destructive)" : "text-(--gold-soft)"}>{peso(entryMoney.balance)}</span></span>
                     <span>Candidate share: <span className="text-(--ivory)/80">{peso(entryMoney.candidateShare)}</span></span>
-                    {entry.remittance_date && <span>Last paid: <span className="text-(--ivory)/80">{entry.remittance_date}</span></span>}
-                    {entry.remittance_note && <span>Payment note: <span className="text-(--ivory)/80">{entry.remittance_note}</span></span>}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
